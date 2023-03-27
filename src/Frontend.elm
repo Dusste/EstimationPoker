@@ -7,7 +7,7 @@ import Css.Global
 import Html.Styled as Html exposing (Html, text)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events exposing (onClick, onInput)
-import Lamdera exposing (sendToBackend)
+import Lamdera exposing (sendToBackend, sendToFrontend)
 import Process
 import Svg.Styled exposing (path, svg)
 import Svg.Styled.Attributes as SvgAttr
@@ -64,7 +64,7 @@ app =
 initialModel : Url -> Nav.Key -> Model
 initialModel url key =
     { key = key
-    , url = Url.toString url
+    , url = Url.toString url -- TODO make it base url only: localhost:8000/
     , status = EnterAdminNameStep
     , name = Nothing
     , roomName = Nothing
@@ -77,6 +77,7 @@ initialModel url key =
     , clientId = Nothing
     , clock = 0
     , shouldStartClock = False
+    , shouldFlipCards = False
     }
 
 
@@ -243,6 +244,12 @@ update msg model =
         ResetTime ->
             ( { model | shouldStartClock = False, clock = 0 }, sendToBackend <| ResetTimerAndVote (model.roomId |> Maybe.withDefault 1) )
 
+        FlipCards ->
+            ( { model | shouldFlipCards = True }, sendToBackend <| InitiateFlipCards (model.roomId |> Maybe.withDefault 1) )
+
+        ClearVotes ->
+            ( { model | shouldFlipCards = False }, sendToBackend <| ClearAllUserVotes (model.roomId |> Maybe.withDefault 1) )
+
 
 updateFromBackend : ToFrontend -> Model -> ( Model, Cmd FrontendMsg )
 updateFromBackend msg model =
@@ -251,7 +258,29 @@ updateFromBackend msg model =
             ( { model | roomId = Just roomId }, Cmd.none )
 
         ResRoomRoute { status, roomName, clientId, stories, users } ->
-            ( { model | status = status, roomName = Just roomName, clientId = Just clientId, stories = stories, users = users }, Cmd.none )
+            let
+                isAdmin =
+                    users
+                        |> List.filter (\user -> user.clientId == clientId)
+                        |> List.head
+                        |> Maybe.withDefault defaultUser
+                        |> .isAdmin
+            in
+            ( { model
+                | status = status
+                , roomName = Just roomName
+                , clientId = Just clientId
+                , stories = stories
+                , users = users
+                , credentials =
+                    if isAdmin then
+                        Admin
+
+                    else
+                        Employee
+              }
+            , Cmd.none
+            )
 
         UpdateRoom { clientId, name } ->
             ( { model | users = { defaultUser | clientId = clientId, name = name } :: model.users }, Cmd.none )
@@ -270,6 +299,12 @@ updateFromBackend msg model =
 
         UpdateCards users ->
             ( { model | users = users }, Cmd.none )
+
+        UsersFlipCards ->
+            ( { model | shouldFlipCards = True }, Cmd.none )
+
+        UsersCardReset users ->
+            ( { model | users = users, shouldFlipCards = False }, Cmd.none )
 
 
 view : Model -> Browser.Document FrontendMsg
@@ -415,17 +450,40 @@ view model =
                                                             Html.li [ Attr.css [ Tw.text_color Tw.blue_400 ] ]
                                                                 [ Html.div []
                                                                     [ Html.p [] [ text name ]
-                                                                    , Html.p [] [ card |> String.fromFloat |> text ]
+                                                                    , case model.credentials of
+                                                                        Admin ->
+                                                                            Html.p [] [ card |> String.fromFloat |> text ]
+
+                                                                        Employee ->
+                                                                            if model.shouldFlipCards then
+                                                                                Html.p [] [ card |> String.fromFloat |> text ]
+
+                                                                            else
+                                                                                text ""
                                                                     ]
                                                                 ]
 
                                                         else
-                                                            Html.li []
-                                                                [ Html.div []
-                                                                    [ Html.p [] [ text name ]
-                                                                    , Html.p [] [ card |> String.fromFloat |> text ]
-                                                                    ]
-                                                                ]
+                                                            case model.credentials of
+                                                                Admin ->
+                                                                    Html.li []
+                                                                        [ Html.div []
+                                                                            [ Html.p [] [ text name ]
+                                                                            , Html.p [] [ card |> String.fromFloat |> text ]
+                                                                            ]
+                                                                        ]
+
+                                                                Employee ->
+                                                                    Html.li []
+                                                                        [ Html.div []
+                                                                            [ Html.p [] [ text name ]
+                                                                            , if model.shouldFlipCards then
+                                                                                Html.p [] [ card |> String.fromFloat |> text ]
+
+                                                                              else
+                                                                                text ""
+                                                                            ]
+                                                                        ]
                                                     )
                                             )
                                         ]
@@ -437,8 +495,8 @@ view model =
                                                 [ if model.shouldStartClock then
                                                     Html.div []
                                                         [ Html.button [ onClick ResetTime ] [ text "Reset timer" ]
-                                                        , Html.button [] [ text "Flip cards" ]
-                                                        , Html.button [] [ text "Clear votes" ]
+                                                        , Html.button [ onClick FlipCards ] [ text "Flip cards" ]
+                                                        , Html.button [ onClick ClearVotes ] [ text "Clear votes" ]
                                                         , Html.button [] [ text "Skip story" ]
                                                         ]
 

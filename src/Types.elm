@@ -23,6 +23,7 @@ type alias FrontendModel =
     , clientId : Maybe ClientId
     , clock : Int
     , shouldStartClock : Bool
+    , shouldFlipCards : Bool
     }
 
 
@@ -70,8 +71,7 @@ type Credentials
 
 
 type alias Room =
-    { admin : ValidTextField
-    , users : List User
+    { users : List User
     , roomName : ValidTextField
     , stories : List ValidTextField
     }
@@ -87,8 +87,7 @@ type alias User =
 
 defaultRoom : Room
 defaultRoom =
-    { admin = ""
-    , users = []
+    { users = []
     , roomName = ""
     , stories = []
     }
@@ -117,6 +116,8 @@ type FrontendMsg
     | Tick Time.Posix
     | StartTime
     | ResetTime
+    | FlipCards
+    | ClearVotes
 
 
 type ToBackend
@@ -128,6 +129,8 @@ type ToBackend
     | SendCard Float Int
     | StartTimerAndVote Int
     | ResetTimerAndVote Int
+    | InitiateFlipCards Int
+    | ClearAllUserVotes Int
 
 
 type BackendMsg
@@ -144,3 +147,5 @@ type ToFrontend
     | UsersStartTimer
     | UsersResetTimer
     | UpdateCards (List User)
+    | UsersFlipCards
+    | UsersCardReset (List User)
