@@ -1,7 +1,6 @@
 module Backend exposing (..)
 
 import Dict
-import Env
 import Lamdera exposing (ClientId, SessionId, onConnect, onDisconnect, sendToFrontend)
 import Lamdera.Debug exposing (debugS)
 import Types exposing (..)
@@ -127,7 +126,9 @@ updateFromFrontend sessionId clientId msg model =
                         x :: xs ->
                             (f x.clientId <| msgToFe { clientId = clientId, name = userName }) :: notifyUsersAboutMe xs msgToFe f
             in
-            ( { model | rooms = updateRooms }, Cmd.batch ([ sendToFrontend clientId <| SupplyBEData { users = users, stories = stories } ] ++ notifyUsersAboutMe users UpdateRoom sendToFrontend) )
+            ( { model | rooms = updateRooms }
+            , Cmd.batch ([ sendToFrontend clientId <| SupplyBEData { users = users, stories = stories } ] ++ notifyUsersAboutMe users UpdateRoom sendToFrontend)
+            )
 
         SendRoomNameToBE roomName roomId ->
             --passing room id back and forth as a key for updating Dict
@@ -179,9 +180,80 @@ updateFromFrontend sessionId clientId msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
+        SendCard cardValue roomId ->
+            let
+                updateUser usrs =
+                    usrs
+                        |> List.map
+                            (\user ->
+                                if user.clientId == clientId then
+                                    { user | card = cardValue }
+
+                                else
+                                    user
+                            )
+
+                updateRecord =
+                    Maybe.map (\room -> { room | users = updateUser room.users })
+
+                updateRooms =
+                    Dict.update roomId updateRecord model.rooms
+
+                { users } =
+                    updateRooms
+                        |> Dict.get roomId
+                        |> Maybe.withDefault defaultRoom
+
+                notifyUsersAboutMe : List User -> (List User -> toFrontend) -> (ClientId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
+                notifyUsersAboutMe usrs msgToFe f =
+                    case usrs of
+                        [] ->
+                            []
+
+                        x :: xs ->
+                            (f x.clientId <| msgToFe users) :: notifyUsersAboutMe xs msgToFe f
+            in
+            ( { model | rooms = updateRooms }, notifyUsersAboutMe users UpdateCards sendToFrontend |> Cmd.batch )
+
+        StartTimerAndVote roomId ->
+            let
+                { users } =
+                    model.rooms
+                        |> Dict.get roomId
+                        |> Maybe.withDefault defaultRoom
+
+                notifyUsersAboutMe : List User -> toFrontend -> (ClientId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
+                notifyUsersAboutMe usrs msgToFe f =
+                    case usrs of
+                        [] ->
+                            []
+
+                        x :: xs ->
+                            f x.clientId msgToFe :: notifyUsersAboutMe xs msgToFe f
+            in
+            ( model, notifyUsersAboutMe users UsersStartTimer sendToFrontend |> Cmd.batch )
+
+        ResetTimerAndVote roomId ->
+            let
+                { users } =
+                    model.rooms
+                        |> Dict.get roomId
+                        |> Maybe.withDefault defaultRoom
+
+                notifyUsersAboutMe : List User -> toFrontend -> (ClientId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
+                notifyUsersAboutMe usrs msgToFe f =
+                    case usrs of
+                        [] ->
+                            []
+
+                        x :: xs ->
+                            f x.clientId msgToFe :: notifyUsersAboutMe xs msgToFe f
+            in
+            ( model, notifyUsersAboutMe users UsersResetTimer sendToFrontend |> Cmd.batch )
+
 
 subscriptions : BackendModel -> Sub BackendMsg
-subscriptions model =
+subscriptions _ =
     Sub.batch
         [ onConnect UserConnected
         , onDisconnect UserDisconnected

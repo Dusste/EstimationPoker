@@ -9,6 +9,8 @@ import Html.Styled.Attributes as Attr
 import Html.Styled.Events exposing (onClick, onInput)
 import Lamdera exposing (sendToBackend)
 import Process
+import Svg.Styled exposing (path, svg)
+import Svg.Styled.Attributes as SvgAttr
 import Tailwind.Breakpoints as Breakpoints
 import Tailwind.Theme as Tw
 import Tailwind.Utilities as Tw
@@ -213,31 +215,33 @@ update msg model =
             ( { model | story = Just str }, Cmd.none )
 
         ChooseCard cardValue ->
-            let
-                justClientId =
-                    model.clientId |> Maybe.withDefault "123"
+            case model.clientId of
+                Just justClientId ->
+                    let
+                        updatedUsers =
+                            model.users
+                                |> List.map
+                                    (\user ->
+                                        if user.clientId == justClientId then
+                                            { user | card = cardValue }
 
-                updatedUsers =
-                    model.users
-                        |> List.map
-                            (\user ->
-                                if user.clientId == justClientId then
-                                    { user | card = cardValue }
+                                        else
+                                            user
+                                    )
+                    in
+                    ( { model | users = updatedUsers }, sendToBackend <| SendCard cardValue (model.roomId |> Maybe.withDefault 1) )
 
-                                else
-                                    user
-                            )
-            in
-            ( { model | users = updatedUsers }, Cmd.none )
+                Nothing ->
+                    ( model, Cmd.none )
 
         Tick _ ->
             ( { model | clock = model.clock + 1 }, Cmd.none )
 
         StartTime ->
-            ( { model | shouldStartClock = True }, Cmd.none )
+            ( { model | shouldStartClock = True }, sendToBackend <| StartTimerAndVote (model.roomId |> Maybe.withDefault 1) )
 
         ResetTime ->
-            ( { model | shouldStartClock = False, clock = 0 }, Cmd.none )
+            ( { model | shouldStartClock = False, clock = 0 }, sendToBackend <| ResetTimerAndVote (model.roomId |> Maybe.withDefault 1) )
 
 
 updateFromBackend : ToFrontend -> Model -> ( Model, Cmd FrontendMsg )
@@ -258,32 +262,14 @@ updateFromBackend msg model =
         UpdateUsers users ->
             ( { model | users = users }, Cmd.none )
 
+        UsersStartTimer ->
+            ( { model | shouldStartClock = True }, Cmd.none )
 
-fromIntToCounter : Int -> String
-fromIntToCounter interval =
-    let
-        diffMinutes =
-            interval
-                // 60
+        UsersResetTimer ->
+            ( { model | shouldStartClock = False, clock = 0 }, Cmd.none )
 
-        diffSeconds =
-            modBy 60 interval
-
-        minutes =
-            if diffMinutes >= 10 then
-                diffMinutes |> String.fromInt
-
-            else
-                "0" ++ (diffMinutes |> String.fromInt)
-
-        seconds =
-            if diffSeconds >= 10 then
-                diffSeconds |> String.fromInt
-
-            else
-                "0" ++ (diffSeconds |> String.fromInt)
-    in
-    minutes ++ ":" ++ seconds
+        UpdateCards users ->
+            ( { model | users = users }, Cmd.none )
 
 
 view : Model -> Browser.Document FrontendMsg
@@ -295,19 +281,41 @@ view model =
                 [ Html.div [ Attr.css [ Tw.font_sans ] ]
                     [ case model.error of
                         Just error ->
-                            Html.p
+                            Html.div
                                 [ Attr.css
-                                    [ Tw.bg_color Tw.red_600
-                                    , Tw.text_color Tw.white
-                                    , Tw.p_1
+                                    [ Tw.p_4
+                                    , Tw.flex
+                                    , Tw.mb_4
+                                    , Tw.text_sm
+                                    , Tw.text_color Tw.red_800
+                                    , Tw.rounded_lg
+                                    , Tw.bg_color Tw.red_50
                                     ]
+                                , Attr.attribute "role" "alert"
                                 ]
-                                [ text error ]
+                                [ svg
+                                    [ Attr.css
+                                        [ Tw.flex_shrink_0
+                                        , Tw.inline
+                                        , Tw.w_5
+                                        , Tw.h_5
+                                        , Tw.mr_3
+                                        ]
+                                    , SvgAttr.fill "currentColor"
+                                    , SvgAttr.viewBox "0 0 20 20"
+                                    ]
+                                    [ path
+                                        [ SvgAttr.fillRule "evenodd"
+                                        , SvgAttr.d "M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                        , SvgAttr.clipRule "evenodd"
+                                        ]
+                                        []
+                                    ]
+                                , text error
+                                ]
 
                         Nothing ->
                             text ""
-                    , Html.div []
-                        [ text <| fromIntToCounter model.clock ]
                     , case model.status of
                         EnterAdminNameStep ->
                             Html.div []
@@ -391,22 +399,33 @@ view model =
                                 , Html.div []
                                     [ text "I am main content"
                                     , Html.div []
-                                        [ viewCards ]
+                                        [ viewCards model ]
                                     ]
                                 , Html.div []
-                                    [ text "I am sidebar. Copy link and send to collegues to invite"
+                                    [ Html.div [] [ text <| Util.fromIntToCounter model.clock ]
+                                    , text "I am sidebar. Copy link and send to collegues to invite"
                                     , Html.input [ Attr.readonly True, Attr.value <| model.url ++ "invite/" ++ (model.roomId |> Maybe.withDefault 1 |> String.fromInt) ] []
                                     , Html.div []
                                         [ text "Users:"
                                         , Html.ul []
                                             (model.users
                                                 |> List.map
-                                                    (\{ isAdmin, name } ->
+                                                    (\{ isAdmin, name, card } ->
                                                         if isAdmin then
-                                                            Html.li [ Attr.css [ Tw.text_color Tw.blue_400 ] ] [ text name ]
+                                                            Html.li [ Attr.css [ Tw.text_color Tw.blue_400 ] ]
+                                                                [ Html.div []
+                                                                    [ Html.p [] [ text name ]
+                                                                    , Html.p [] [ card |> String.fromFloat |> text ]
+                                                                    ]
+                                                                ]
 
                                                         else
-                                                            Html.li [] [ text name ]
+                                                            Html.li []
+                                                                [ Html.div []
+                                                                    [ Html.p [] [ text name ]
+                                                                    , Html.p [] [ card |> String.fromFloat |> text ]
+                                                                    ]
+                                                                ]
                                                     )
                                             )
                                         ]
@@ -418,9 +437,9 @@ view model =
                                                 [ if model.shouldStartClock then
                                                     Html.div []
                                                         [ Html.button [ onClick ResetTime ] [ text "Reset timer" ]
-                                                        , Html.button [ onClick ResetTime ] [ text "Flip cards" ]
-                                                        , Html.button [ onClick ResetTime ] [ text "Clear votes" ]
-                                                        , Html.button [ onClick ResetTime ] [ text "Skip story" ]
+                                                        , Html.button [] [ text "Flip cards" ]
+                                                        , Html.button [] [ text "Clear votes" ]
+                                                        , Html.button [] [ text "Skip story" ]
                                                         ]
 
                                                   else
@@ -473,13 +492,19 @@ cards =
     ]
 
 
-viewCards : Html FrontendMsg
-viewCards =
+viewCards : FrontendModel -> Html FrontendMsg
+viewCards model =
     Html.ul []
         (cards
             |> List.map
                 (\card ->
-                    Html.li [ onClick <| ChooseCard card.value ]
+                    Html.li
+                        (if model.shouldStartClock then
+                            [ onClick <| ChooseCard card.value ]
+
+                         else
+                            []
+                        )
                         [ Html.span [] [ text card.name ]
                         ]
                 )

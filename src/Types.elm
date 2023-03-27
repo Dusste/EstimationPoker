@@ -125,6 +125,9 @@ type ToBackend
     | SendAdminNameToBE ValidTextField
     | SendUserNameToBE ValidTextField Int
     | ReqRoomRoute RoomParam Bool
+    | SendCard Float Int
+    | StartTimerAndVote Int
+    | ResetTimerAndVote Int
 
 
 type BackendMsg
@@ -138,3 +141,6 @@ type ToFrontend
     | UpdateRoom { clientId : ClientId, name : String }
     | SupplyBEData { users : List User, stories : List ValidTextField }
     | UpdateUsers (List User)
+    | UsersStartTimer
+    | UsersResetTimer
+    | UpdateCards (List User)

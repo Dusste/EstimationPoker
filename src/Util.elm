@@ -29,3 +29,30 @@ matchRoute =
         , Parser.map InviteRoute (Parser.s "invite" </> roomIdParser)
         , Parser.map RoomRoute (Parser.s "room" </> roomIdParser)
         ]
+
+
+fromIntToCounter : Int -> String
+fromIntToCounter interval =
+    let
+        diffMinutes =
+            interval
+                // 60
+
+        diffSeconds =
+            modBy 60 interval
+
+        minutes =
+            if diffMinutes >= 10 then
+                diffMinutes |> String.fromInt
+
+            else
+                "0" ++ (diffMinutes |> String.fromInt)
+
+        seconds =
+            if diffSeconds >= 10 then
+                diffSeconds |> String.fromInt
+
+            else
+                "0" ++ (diffSeconds |> String.fromInt)
+    in
+    minutes ++ ":" ++ seconds
