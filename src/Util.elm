@@ -56,3 +56,17 @@ fromIntToCounter interval =
                 "0" ++ (diffSeconds |> String.fromInt)
     in
     minutes ++ ":" ++ seconds
+
+
+getBaseUrl : Url -> String
+getBaseUrl u =
+    case u.port_ of
+        Nothing ->
+            "http://www." ++ u.host ++ "/"
+
+        Just p ->
+            "http://"
+                ++ u.host
+                ++ ":"
+                ++ (p |> String.fromInt)
+                ++ "/"

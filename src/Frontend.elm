@@ -7,14 +7,12 @@ import Css.Global
 import Html.Styled as Html exposing (Html, text)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events exposing (onClick, onInput)
-import Lamdera exposing (sendToBackend, sendToFrontend)
-import Process
+import Lamdera exposing (sendToBackend)
 import Svg.Styled exposing (path, svg)
 import Svg.Styled.Attributes as SvgAttr
 import Tailwind.Breakpoints as Breakpoints
 import Tailwind.Theme as Tw
 import Tailwind.Utilities as Tw
-import Task
 import Time
 import Types exposing (..)
 import Url exposing (Url)
@@ -64,7 +62,7 @@ app =
 initialModel : Url -> Nav.Key -> Model
 initialModel url key =
     { key = key
-    , url = Url.toString url -- TODO make it base url only: localhost:8000/
+    , url = Util.getBaseUrl url -- TODO make it base url only: localhost:8000/
     , status = EnterAdminNameStep
     , name = Nothing
     , roomName = Nothing
@@ -78,6 +76,7 @@ initialModel url key =
     , clock = 0
     , shouldStartClock = False
     , shouldFlipCards = False
+    , shouldShowCharts = False
     }
 
 
@@ -186,7 +185,7 @@ update msg model =
                     ( { model | error = errorMessage }, Cmd.none )
 
                 Ok validInput ->
-                    ( { model | error = Nothing, story = Nothing, stories = validInput :: model.stories }, Cmd.none )
+                    ( { model | error = Nothing, story = Nothing, stories = model.stories ++ [ validInput ] }, Cmd.none )
 
         SaveStory ->
             case validateInput model.story of
@@ -200,10 +199,10 @@ update msg model =
 
                         -- TODO think about something smarter
                         updatedStories =
-                            validInput :: model.stories
+                            model.stories ++ [ validInput ]
                     in
                     ( { model | error = Nothing, status = PokerStep, story = Nothing, stories = updatedStories }
-                    , Cmd.batch [ sendToBackend <| SendStoryToBE updatedStories roomId, Nav.pushUrl model.key <| "/room/" ++ (model.roomId |> Maybe.withDefault 1 |> String.fromInt) ]
+                    , Cmd.batch [ sendToBackend <| SendStoryToBE updatedStories roomId, Nav.pushUrl model.key <| "/room/" ++ (roomId |> String.fromInt) ]
                     )
 
         StoreName str ->
@@ -224,7 +223,7 @@ update msg model =
                                 |> List.map
                                     (\user ->
                                         if user.clientId == justClientId then
-                                            { user | card = cardValue }
+                                            { user | card = Just cardValue, hasVoted = True }
 
                                         else
                                             user
@@ -245,10 +244,20 @@ update msg model =
             ( { model | shouldStartClock = False, clock = 0 }, sendToBackend <| ResetTimerAndVote (model.roomId |> Maybe.withDefault 1) )
 
         FlipCards ->
-            ( { model | shouldFlipCards = True }, sendToBackend <| InitiateFlipCards (model.roomId |> Maybe.withDefault 1) )
+            ( { model | shouldFlipCards = not <| model.shouldFlipCards }, sendToBackend <| InitiateFlipCards (model.roomId |> Maybe.withDefault 1) )
 
         ClearVotes ->
             ( { model | shouldFlipCards = False }, sendToBackend <| ClearAllUserVotes (model.roomId |> Maybe.withDefault 1) )
+
+        FinishVoting ->
+            ( { model | shouldStartClock = False }, sendToBackend <| SignalShowCharts (model.roomId |> Maybe.withDefault 1) )
+
+        NextStory ->
+            let
+                updatedStories =
+                    model.stories |> List.drop 1
+            in
+            ( { model | stories = updatedStories }, Cmd.batch [ sendToBackend <| ClearAllUserVotes (model.roomId |> Maybe.withDefault 1), sendToBackend <| SignalUpdateStories updatedStories (model.roomId |> Maybe.withDefault 1) ] )
 
 
 updateFromBackend : ToFrontend -> Model -> ( Model, Cmd FrontendMsg )
@@ -301,15 +310,21 @@ updateFromBackend msg model =
             ( { model | users = users }, Cmd.none )
 
         UsersFlipCards ->
-            ( { model | shouldFlipCards = True }, Cmd.none )
+            ( { model | shouldFlipCards = not <| model.shouldFlipCards }, Cmd.none )
 
         UsersCardReset users ->
             ( { model | users = users, shouldFlipCards = False }, Cmd.none )
 
+        ExposeCharts ->
+            ( { model | shouldShowCharts = not <| model.shouldShowCharts, shouldStartClock = False, clock = 0 }, Cmd.none )
+
+        UpdateStories updatedStories resetUsers ->
+            ( { model | stories = updatedStories, shouldShowCharts = not <| model.shouldShowCharts, users = resetUsers }, Cmd.none )
+
 
 view : Model -> Browser.Document FrontendMsg
 view model =
-    { title = ""
+    { title = "EstPoker"
     , body =
         [ Html.toUnstyled <|
             Html.div []
@@ -430,11 +445,17 @@ view model =
 
                         PokerStep ->
                             Html.div []
-                                [ Html.div [] [ Html.h3 [] [ model.roomName |> Maybe.withDefault "{default room name}" |> text ] ]
+                                [ Html.div [] [ Html.h3 [] [ model.roomName |> Maybe.withDefault "Room name is not available" |> text ] ]
+                                , Html.p [] [ model.stories |> List.head |> Maybe.withDefault "There are no stories" |> text ]
                                 , Html.div []
                                     [ text "I am main content"
                                     , Html.div []
-                                        [ viewCards model ]
+                                        [ if model.shouldShowCharts then
+                                            viewCharts model
+
+                                          else
+                                            viewCards model
+                                        ]
                                     ]
                                 , Html.div []
                                     [ Html.div [] [ text <| Util.fromIntToCounter model.clock ]
@@ -445,18 +466,28 @@ view model =
                                         , Html.ul []
                                             (model.users
                                                 |> List.map
-                                                    (\{ isAdmin, name, card } ->
+                                                    (\{ isAdmin, name, card, hasVoted } ->
                                                         if isAdmin then
                                                             Html.li [ Attr.css [ Tw.text_color Tw.blue_400 ] ]
                                                                 [ Html.div []
                                                                     [ Html.p [] [ text name ]
                                                                     , case model.credentials of
                                                                         Admin ->
-                                                                            Html.p [] [ card |> String.fromFloat |> text ]
+                                                                            case card of
+                                                                                Just crd ->
+                                                                                    Html.p [] [ crd |> String.fromFloat |> text ]
+
+                                                                                Nothing ->
+                                                                                    text ""
 
                                                                         Employee ->
                                                                             if model.shouldFlipCards then
-                                                                                Html.p [] [ card |> String.fromFloat |> text ]
+                                                                                case card of
+                                                                                    Just crd ->
+                                                                                        Html.p [] [ crd |> String.fromFloat |> text ]
+
+                                                                                    Nothing ->
+                                                                                        text ""
 
                                                                             else
                                                                                 text ""
@@ -469,7 +500,12 @@ view model =
                                                                     Html.li []
                                                                         [ Html.div []
                                                                             [ Html.p [] [ text name ]
-                                                                            , Html.p [] [ card |> String.fromFloat |> text ]
+                                                                            , case card of
+                                                                                Just crd ->
+                                                                                    Html.p [] [ crd |> String.fromFloat |> text ]
+
+                                                                                Nothing ->
+                                                                                    text ""
                                                                             ]
                                                                         ]
 
@@ -478,11 +514,21 @@ view model =
                                                                         [ Html.div []
                                                                             [ Html.p [] [ text name ]
                                                                             , if model.shouldFlipCards then
-                                                                                Html.p [] [ card |> String.fromFloat |> text ]
+                                                                                case card of
+                                                                                    Just crd ->
+                                                                                        Html.p [] [ crd |> String.fromFloat |> text ]
+
+                                                                                    Nothing ->
+                                                                                        text ""
 
                                                                               else
                                                                                 text ""
                                                                             ]
+                                                                        , if hasVoted then
+                                                                            Html.p [] [ text "📜" ]
+
+                                                                          else
+                                                                            text ""
                                                                         ]
                                                     )
                                             )
@@ -492,20 +538,29 @@ view model =
                                     [ case model.credentials of
                                         Admin ->
                                             Html.div []
-                                                [ if model.shouldStartClock then
-                                                    Html.div []
-                                                        [ Html.button [ onClick ResetTime ] [ text "Reset timer" ]
-                                                        , Html.button [ onClick FlipCards ] [ text "Flip cards" ]
-                                                        , Html.button [ onClick ClearVotes ] [ text "Clear votes" ]
-                                                        , Html.button [] [ text "Skip story" ]
-                                                        ]
+                                                [ if not <| model.shouldShowCharts && List.length model.stories > 0 then
+                                                    if model.shouldStartClock then
+                                                        Html.div []
+                                                            [ Html.button [ onClick ResetTime ] [ text "Reset timer" ]
+                                                            , Html.button [ onClick FlipCards ] [ text "Flip cards" ]
+                                                            , Html.button [ onClick ClearVotes ] [ text "Clear votes" ]
+                                                            , Html.button [ onClick NextStory ] [ text "Skip story" ]
+                                                            , if model.users |> List.all (\user -> user.hasVoted) then
+                                                                Html.button [ onClick FinishVoting ] [ text "Finish Voting" ]
+
+                                                              else
+                                                                text ""
+                                                            ]
+
+                                                    else
+                                                        Html.button [ onClick StartTime ] [ text "Start timer" ]
 
                                                   else
-                                                    Html.button [ onClick StartTime ] [ text "Start timer" ]
+                                                    text ""
                                                 ]
 
                                         Employee ->
-                                            Html.div [] []
+                                            text ""
                                     ]
                                 , Html.div []
                                     [ text "I am bottom tabs, I present stories"
@@ -567,3 +622,72 @@ viewCards model =
                         ]
                 )
         )
+
+
+viewCharts : FrontendModel -> Html FrontendMsg
+viewCharts model =
+    let
+        teamSize =
+            model.users |> List.length |> toFloat
+
+        toChartData : Float -> List User -> List { uniqueVoteValue : Maybe Float, percentage : Float, numOfVoters : Float }
+        toChartData count lst =
+            case lst of
+                [] ->
+                    []
+
+                x :: xs ->
+                    let
+                        listOfLeftValues =
+                            xs |> List.map (\u -> u.card)
+                    in
+                    if List.isEmpty xs then
+                        { numOfVoters = count, percentage = count / teamSize * 100, uniqueVoteValue = x.card } :: toChartData 1 []
+
+                    else if List.member x.card listOfLeftValues then
+                        [] ++ toChartData (count + 1) xs
+
+                    else
+                        { uniqueVoteValue = x.card, percentage = count / teamSize * 100, numOfVoters = count } :: toChartData 1 xs
+    in
+    Html.div []
+        [ case model.credentials of
+            Admin ->
+                if List.isEmpty model.stories then
+                    Html.p [] [ text "No more stories to estimate ! You are done !" ]
+
+                else if model.shouldShowCharts then
+                    Html.button [ onClick NextStory ] [ text "Next Story" ]
+
+                else
+                    text ""
+
+            Employee ->
+                text ""
+        , Html.ul []
+            (model.users
+                |> List.sortBy
+                    (\user ->
+                        let
+                            crd =
+                                user.card |> Maybe.withDefault 0.5
+                        in
+                        crd
+                    )
+                |> toChartData 1
+                |> List.map
+                    (\entry ->
+                        Html.li []
+                            [ Html.div []
+                                [ Html.div []
+                                    [ Html.p [] [ entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text ]
+                                    , Html.p [] [ text <| (entry.percentage |> String.fromFloat) ++ "%" ]
+                                    , Html.p [] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " players)" ]
+                                    ]
+
+                                --  TODO PIE CHART placeholder ! , Chart.pie [ ( 1, "Dsuan" ), ( 2, "Pera" ), ( 3, "Bojana" ), ( 1, "Vaja" ), ( 2, "Peka" ) ] |> Chart.toHtml
+                                ]
+                            ]
+                    )
+            )
+        ]

@@ -24,6 +24,7 @@ type alias FrontendModel =
     , clock : Int
     , shouldStartClock : Bool
     , shouldFlipCards : Bool
+    , shouldShowCharts : Bool
     }
 
 
@@ -80,8 +81,9 @@ type alias Room =
 type alias User =
     { name : ValidTextField
     , isAdmin : Bool
-    , card : Float
+    , card : Maybe Float
     , clientId : ClientId
+    , hasVoted : Bool
     }
 
 
@@ -97,8 +99,9 @@ defaultUser : User
 defaultUser =
     { name = ""
     , isAdmin = False
-    , card = 0
+    , card = Nothing
     , clientId = "123"
+    , hasVoted = False
     }
 
 
@@ -118,6 +121,8 @@ type FrontendMsg
     | ResetTime
     | FlipCards
     | ClearVotes
+    | FinishVoting
+    | NextStory
 
 
 type ToBackend
@@ -131,6 +136,8 @@ type ToBackend
     | ResetTimerAndVote Int
     | InitiateFlipCards Int
     | ClearAllUserVotes Int
+    | SignalShowCharts Int
+    | SignalUpdateStories (List ValidTextField) Int
 
 
 type BackendMsg
@@ -149,3 +156,5 @@ type ToFrontend
     | UpdateCards (List User)
     | UsersFlipCards
     | UsersCardReset (List User)
+    | ExposeCharts
+    | UpdateStories (List ValidTextField) (List User)
