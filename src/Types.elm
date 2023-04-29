@@ -90,17 +90,17 @@ type alias User =
 defaultRoom : Room
 defaultRoom =
     { users = []
-    , roomName = ""
+    , roomName = "Room name not availabe"
     , stories = []
     }
 
 
 defaultUser : User
 defaultUser =
-    { name = ""
+    { name = "Name not available"
     , isAdmin = False
     , card = Nothing
-    , clientId = "123"
+    , clientId = "Invalid client id"
     , hasVoted = False
     }
 

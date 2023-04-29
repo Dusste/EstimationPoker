@@ -10,7 +10,7 @@ import Html.Styled.Events exposing (onClick, onInput)
 import Lamdera exposing (sendToBackend)
 import Svg.Styled exposing (path, svg)
 import Svg.Styled.Attributes as SvgAttr
-import Tailwind.Breakpoints as Breakpoints
+import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Tw
 import Tailwind.Utilities as Tw
 import Time
@@ -104,12 +104,12 @@ init url key =
             , sendToBackend <| ReqRoomRoute roomId False
             )
 
-        RoomRoute roomId ->
+        RoomRoute _ ->
             let
                 mdl =
                     initialModel url key
             in
-            ( { mdl | roomId = Just roomId }, sendToBackend <| ReqRoomRoute roomId True )
+            ( mdl, Nav.replaceUrl key "/" )
 
 
 update : FrontendMsg -> Model -> ( Model, Cmd FrontendMsg )
@@ -206,7 +206,7 @@ update msg model =
                     )
 
         StoreName str ->
-            ( { model | name = Just str }, Cmd.none )
+            ( { model | name = Just str, error = Nothing }, Cmd.none )
 
         StoreRoom str ->
             ( { model | roomName = Just str }, Cmd.none )
@@ -327,53 +327,113 @@ view model =
     { title = "EstPoker"
     , body =
         [ Html.toUnstyled <|
-            Html.div []
-                [ Html.div [ Attr.css [ Tw.font_sans ] ]
-                    [ case model.error of
-                        Just error ->
-                            Html.div
-                                [ Attr.css
-                                    [ Tw.p_4
-                                    , Tw.flex
-                                    , Tw.mb_4
-                                    , Tw.text_sm
-                                    , Tw.text_color Tw.red_800
-                                    , Tw.rounded_lg
-                                    , Tw.bg_color Tw.red_50
-                                    ]
-                                , Attr.attribute "role" "alert"
-                                ]
-                                [ svg
-                                    [ Attr.css
-                                        [ Tw.flex_shrink_0
-                                        , Tw.inline
-                                        , Tw.w_5
-                                        , Tw.h_5
-                                        , Tw.mr_3
-                                        ]
-                                    , SvgAttr.fill "currentColor"
-                                    , SvgAttr.viewBox "0 0 20 20"
-                                    ]
-                                    [ path
-                                        [ SvgAttr.fillRule "evenodd"
-                                        , SvgAttr.d "M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                        , SvgAttr.clipRule "evenodd"
-                                        ]
-                                        []
-                                    ]
-                                , text error
-                                ]
+            Html.div [ Attr.css [ Tw.flex, Tw.h_full, Tw.bg_color Tw.black, Tw.h_screen ] ]
+                [ Html.div [ Attr.css [ Tw.h_full, Tw.w_full, Tw.flex, Tw.flex_col ] ]
+                    [ Html.div
+                        [ Attr.css
+                            [ Tw.p_4
+                            , Tw.absolute
+                            , Tw.w_full
+                            , Tw.transition_opacity
+                            , Tw.flex
+                            , Tw.duration_200
+                            , Tw.ease_in
+                            , case model.error of
+                                Just _ ->
+                                    Tw.opacity_100
 
-                        Nothing ->
-                            text ""
+                                Nothing ->
+                                    Tw.opacity_0
+                            , Tw.mb_4
+                            , Tw.text_lg
+                            , Tw.justify_center
+                            , Tw.text_color Tw.red_800
+                            , Tw.bg_color Tw.red_200
+                            ]
+                        , Attr.attribute "role" "alert"
+                        ]
+                        [ svg
+                            [ Attr.css
+                                [ Tw.flex_shrink_0
+                                , Tw.inline
+                                , Tw.w_7
+                                , Tw.h_7
+                                , Tw.mr_3
+                                ]
+                            , SvgAttr.fill "currentColor"
+                            , SvgAttr.viewBox "0 0 20 20"
+                            ]
+                            [ path
+                                [ SvgAttr.fillRule "evenodd"
+                                , SvgAttr.d "M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                , SvgAttr.clipRule "evenodd"
+                                ]
+                                []
+                            ]
+                        , case model.error of
+                            Just err ->
+                                text err
+
+                            Nothing ->
+                                text ""
+                        ]
                     , case model.status of
                         EnterAdminNameStep ->
-                            Html.div []
-                                [ Html.div [] [ Html.h3 [] [ text "Add your name" ] ]
-                                , Html.div []
-                                    [ Html.p [] [ text "(You are about to become an admin)" ]
+                            Html.div
+                                [ Attr.css
+                                    [ Tw.flex
+                                    , Tw.min_h_full
+                                    , Tw.flex_col
+                                    , Tw.justify_center
+                                    , Tw.px_6
+                                    , Tw.text_center
+                                    , Bp.lg
+                                        [ Tw.px_8
+                                        ]
+                                    ]
+                                ]
+                                [ Html.div
+                                    [ Attr.css
+                                        [ Tw.text_color Tw.white
+                                        , Tw.text_2xl
+                                        , Bp.sm
+                                            [ Tw.mx_auto
+                                            , Tw.w_full
+                                            , Tw.max_w_sm
+                                            ]
+                                        ]
+                                    ]
+                                    [ Html.h2 [ Attr.css [ Tw.mt_0, Tw.mb_4 ] ] [ text "Add your name" ] ]
+                                , Html.div
+                                    [ Attr.css
+                                        [ Bp.sm
+                                            [ Tw.mx_auto
+                                            , Tw.w_full
+                                            , Tw.max_w_sm
+                                            ]
+                                        ]
+                                    ]
+                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0 ] ] [ text "[ You're about to become an admin ]" ]
                                     , Html.input
                                         [ Attr.type_ "text"
+                                        , Attr.css
+                                            [ Tw.block
+                                            , Tw.w_full
+                                            , Tw.border_color Tw.gray_300
+                                            , Tw.rounded_md
+                                            , Tw.py_2
+                                            , Tw.pl_3
+                                            , Tw.pr_3
+                                            , Tw.text_color Tw.white
+                                            , Tw.shadow_sm
+                                            , Tw.bg_color Tw.black
+                                            , Css.focus
+                                                [ Tw.outline_none
+                                                ]
+                                            , Bp.sm
+                                                [ Tw.text_xl
+                                                ]
+                                            ]
                                         , onInput StoreName
                                         , model.name
                                             |> Maybe.withDefault ""
@@ -381,19 +441,97 @@ view model =
                                         ]
                                         []
                                     ]
-                                , Html.div []
-                                    [ Html.button [ onClick <| SendName Admin ] [ text "Save" ]
+                                , Html.div
+                                    [ Attr.css
+                                        [ Tw.mt_5
+                                        , Bp.sm
+                                            [ Tw.mx_auto
+                                            , Tw.w_full
+                                            , Tw.max_w_sm
+                                            ]
+                                        ]
+                                    ]
+                                    [ Html.button
+                                        [ onClick <| SendName Admin
+                                        , Attr.css
+                                            [ Tw.bg_color Tw.transparent
+                                            , Tw.text_color Tw.white
+                                            , Tw.font_semibold
+                                            , Tw.py_2
+                                            , Tw.px_4
+                                            , Tw.text_2xl
+                                            , Tw.border
+                                            , Tw.border_color Tw.white
+                                            , Tw.rounded
+                                            , Tw.cursor_pointer
+                                            , Css.hover
+                                                [ Tw.bg_color Tw.white
+                                                , Tw.text_color Tw.black
+                                                , Tw.border_color Tw.transparent
+                                                ]
+                                            ]
+                                        ]
+                                        [ text "Save" ]
                                     ]
                                 ]
 
                         EnterNameStep ->
-                            Html.div []
-                                [ Html.div [] [ Html.h3 [] [ model.roomName |> Maybe.withDefault "{default room name}" |> text ] ]
-                                , Html.div []
-                                    [ Html.p [] [ text "Add your name" ]
-                                    , Html.p [] [ text "(After that we will redirect you to team's room)" ]
+                            Html.div
+                                [ Attr.css
+                                    [ Tw.flex
+                                    , Tw.min_h_full
+                                    , Tw.flex_col
+                                    , Tw.text_color Tw.white
+                                    , Tw.justify_center
+                                    , Tw.px_6
+                                    , Tw.text_center
+                                    , Bp.lg
+                                        [ Tw.px_8
+                                        ]
+                                    ]
+                                ]
+                                [ Html.div
+                                    [ Attr.css
+                                        [ Tw.text_2xl
+                                        , Bp.sm
+                                            [ Tw.mx_auto
+                                            , Tw.w_full
+                                            , Tw.max_w_sm
+                                            ]
+                                        ]
+                                    ]
+                                    [ Html.h2 [] [ model.roomName |> Maybe.withDefault "{default room name}" |> text ] ]
+                                , Html.div
+                                    [ Attr.css
+                                        [ Bp.sm
+                                            [ Tw.mx_auto
+                                            , Tw.w_full
+                                            , Tw.max_w_sm
+                                            ]
+                                        ]
+                                    ]
+                                    [ Html.p [ Attr.css [ Tw.mt_0, Tw.mb_4, Tw.text_2xl ] ] [ text "Add your name" ]
+                                    , Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0 ] ] [ text "[ After that we will redirect you to team's room ]" ]
                                     , Html.input
                                         [ Attr.type_ "text"
+                                        , Attr.css
+                                            [ Tw.block
+                                            , Tw.w_full
+                                            , Tw.border_color Tw.gray_300
+                                            , Tw.rounded_md
+                                            , Tw.py_2
+                                            , Tw.pl_3
+                                            , Tw.pr_3
+                                            , Tw.text_color Tw.white
+                                            , Tw.shadow_sm
+                                            , Tw.bg_color Tw.black
+                                            , Css.focus
+                                                [ Tw.outline_none
+                                                ]
+                                            , Bp.sm
+                                                [ Tw.text_xl
+                                                ]
+                                            ]
                                         , onInput StoreName
                                         , model.name
                                             |> Maybe.withDefault ""
@@ -401,17 +539,99 @@ view model =
                                         ]
                                         []
                                     ]
-                                , Html.div []
-                                    [ Html.button [ onClick <| SendName Employee ] [ text "Save" ]
+                                , Html.div
+                                    [ Attr.css
+                                        [ Tw.mt_5
+                                        , Bp.sm
+                                            [ Tw.mx_auto
+                                            , Tw.w_full
+                                            , Tw.max_w_sm
+                                            ]
+                                        ]
+                                    ]
+                                    [ Html.button
+                                        [ Attr.css
+                                            [ Tw.bg_color Tw.transparent
+                                            , Tw.text_color Tw.white
+                                            , Tw.font_semibold
+                                            , Tw.py_2
+                                            , Tw.px_4
+                                            , Tw.text_2xl
+                                            , Tw.border
+                                            , Tw.transition_all
+                                            , Tw.duration_300
+                                            , Tw.border_color Tw.white
+                                            , Tw.rounded
+                                            , Tw.cursor_pointer
+                                            , Css.hover
+                                                [ Tw.bg_color Tw.white
+                                                , Tw.text_color Tw.black
+                                                , Tw.border_color Tw.transparent
+                                                ]
+                                            ]
+                                        , onClick <|
+                                            SendName Employee
+                                        ]
+                                        [ text "Save" ]
                                     ]
                                 ]
 
                         CreateRoomStep ->
-                            Html.div []
-                                [ Html.div [] [ Html.h3 [] [ text "Create new room" ] ]
-                                , Html.div []
-                                    [ Html.input
+                            Html.div
+                                [ Attr.css
+                                    [ Tw.flex
+                                    , Tw.min_h_full
+                                    , Tw.flex_col
+                                    , Tw.justify_center
+                                    , Tw.px_6
+                                    , Tw.text_center
+                                    , Bp.lg
+                                        [ Tw.px_8
+                                        ]
+                                    ]
+                                ]
+                                [ Html.div
+                                    [ Attr.css
+                                        [ Tw.text_color Tw.white
+                                        , Tw.text_2xl
+                                        , Bp.sm
+                                            [ Tw.mx_auto
+                                            , Tw.w_full
+                                            , Tw.max_w_sm
+                                            ]
+                                        ]
+                                    ]
+                                    [ Html.h2 [ Attr.css [ Tw.mt_0, Tw.mb_4 ] ] [ text "Create new room" ] ]
+                                , Html.div
+                                    [ Attr.css
+                                        [ Bp.sm
+                                            [ Tw.mx_auto
+                                            , Tw.w_full
+                                            , Tw.max_w_sm
+                                            ]
+                                        ]
+                                    ]
+                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0 ] ] [ text "[ Place where you can vote for stories ]" ]
+                                    , Html.input
                                         [ Attr.type_ "text"
+                                        , Attr.css
+                                            [ Tw.block
+                                            , Tw.w_full
+                                            , Tw.border_color Tw.gray_300
+                                            , Tw.rounded_md
+                                            , Tw.py_2
+                                            , Tw.pl_3
+                                            , Tw.pr_3
+                                            , Tw.text_color Tw.white
+                                            , Tw.shadow_sm
+                                            , Tw.bg_color Tw.black
+                                            , Css.focus
+                                                [ Tw.outline_none
+                                                ]
+                                            , Bp.sm
+                                                [ Tw.text_xl
+                                                ]
+                                            ]
                                         , onInput StoreRoom
                                         , model.roomName
                                             |> Maybe.withDefault ""
@@ -419,63 +639,433 @@ view model =
                                         ]
                                         []
                                     ]
-                                , Html.div []
-                                    [ Html.button [ onClick SendRoom ] [ text "Create" ]
+                                , Html.div
+                                    [ Attr.css
+                                        [ Tw.mt_5
+                                        , Bp.sm
+                                            [ Tw.mx_auto
+                                            , Tw.w_full
+                                            , Tw.max_w_sm
+                                            ]
+                                        ]
+                                    ]
+                                    [ Html.button
+                                        [ onClick SendRoom
+                                        , Attr.css
+                                            [ Tw.bg_color Tw.transparent
+                                            , Tw.text_color Tw.white
+                                            , Tw.font_semibold
+                                            , Tw.py_2
+                                            , Tw.transition_all
+                                            , Tw.duration_300
+                                            , Tw.px_4
+                                            , Tw.text_2xl
+                                            , Tw.border
+                                            , Tw.border_color Tw.white
+                                            , Tw.rounded
+                                            , Tw.cursor_pointer
+                                            , Css.hover
+                                                [ Tw.bg_color Tw.white
+                                                , Tw.text_color Tw.black
+                                                , Tw.border_color Tw.transparent
+                                                ]
+                                            ]
+                                        ]
+                                        [ text "Create" ]
                                     ]
                                 ]
 
                         CreateStoryStep ->
-                            Html.div []
-                                [ Html.div [] [ Html.h3 [] [ text "Create new story" ] ]
-                                , Html.div []
-                                    [ Html.input
+                            Html.div
+                                [ Attr.css
+                                    [ Tw.flex
+                                    , Tw.min_h_full
+                                    , Tw.flex_col
+                                    , Tw.justify_center
+                                    , Tw.px_6
+                                    , Tw.text_center
+                                    , Bp.lg
+                                        [ Tw.px_8
+                                        ]
+                                    ]
+                                ]
+                                [ Html.div
+                                    [ Attr.css
+                                        [ Tw.text_color Tw.white
+                                        , Tw.text_2xl
+                                        , Bp.sm
+                                            [ Tw.mx_auto
+                                            , Tw.w_full
+                                            , Tw.max_w_sm
+                                            ]
+                                        ]
+                                    ]
+                                    [ Html.h2 [ Attr.css [ Tw.mt_0, Tw.mb_4 ] ] [ text "Create new story" ] ]
+                                , Html.div
+                                    [ Attr.css
+                                        [ Bp.sm
+                                            [ Tw.mx_auto
+                                            , Tw.w_full
+                                            , Tw.max_w_sm
+                                            ]
+                                        ]
+                                    ]
+                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0 ] ] [ text "[ Add multiple or one story ]" ]
+                                    , Html.input
                                         [ Attr.type_ "text"
                                         , onInput StoreStory
+                                        , Attr.css
+                                            [ Tw.block
+                                            , Tw.w_full
+                                            , Tw.border_color Tw.gray_300
+                                            , Tw.rounded_md
+                                            , Tw.py_2
+                                            , Tw.pl_3
+                                            , Tw.pr_3
+                                            , Tw.text_color Tw.white
+                                            , Tw.shadow_sm
+                                            , Tw.bg_color Tw.black
+                                            , Css.focus
+                                                [ Tw.outline_none
+                                                ]
+                                            , Bp.sm
+                                                [ Tw.text_xl
+                                                ]
+                                            ]
                                         , model.story
                                             |> Maybe.withDefault ""
                                             |> Attr.value
                                         ]
                                         []
                                     ]
-                                , Html.div []
-                                    [ Html.button [ onClick SendStory ] [ text "Save and Add new" ]
-                                    , Html.button [ onClick SaveStory ] [ text "Save and Close" ]
+                                , Html.div
+                                    [ Attr.css
+                                        [ Tw.mt_5
+                                        , Bp.sm
+                                            [ Tw.mx_auto
+                                            , Tw.w_full
+                                            , Tw.max_w_sm
+                                            ]
+                                        ]
+                                    ]
+                                    [ Html.button
+                                        [ onClick SendStory
+                                        , Attr.css
+                                            [ Tw.bg_color Tw.transparent
+                                            , Tw.text_color Tw.white
+                                            , Tw.font_semibold
+                                            , Tw.py_2
+                                            , Tw.px_4
+                                            , Tw.text_xl
+                                            , Tw.border
+                                            , Tw.mr_6
+                                            , Tw.transition_all
+                                            , Tw.duration_300
+                                            , Tw.border_color Tw.white
+                                            , Tw.rounded
+                                            , Tw.cursor_pointer
+                                            , Css.hover
+                                                [ Tw.bg_color Tw.white
+                                                , Tw.text_color Tw.black
+                                                , Tw.border_color Tw.transparent
+                                                ]
+                                            ]
+                                        ]
+                                        [ text "Add new" ]
+                                    , Html.button
+                                        [ onClick SaveStory
+                                        , Attr.css
+                                            [ Tw.bg_color Tw.transparent
+                                            , Tw.text_color Tw.white
+                                            , Tw.font_semibold
+                                            , Tw.py_2
+                                            , Tw.px_4
+                                            , Tw.text_xl
+                                            , Tw.transition_all
+                                            , Tw.duration_300
+                                            , Tw.border
+                                            , Tw.border_color Tw.white
+                                            , Tw.rounded
+                                            , Tw.cursor_pointer
+                                            , Css.hover
+                                                [ Tw.bg_color Tw.white
+                                                , Tw.text_color Tw.black
+                                                , Tw.border_color Tw.transparent
+                                                ]
+                                            ]
+                                        ]
+                                        [ text "Save" ]
                                     ]
                                 ]
 
                         PokerStep ->
-                            Html.div []
-                                [ Html.div [] [ Html.h3 [] [ model.roomName |> Maybe.withDefault "Room name is not available" |> text ] ]
-                                , Html.p [] [ model.stories |> List.head |> Maybe.withDefault "There are no stories" |> text ]
-                                , Html.div []
-                                    [ text "I am main content"
-                                    , Html.div []
-                                        [ if model.shouldShowCharts then
-                                            viewCharts model
-
-                                          else
-                                            viewCards model
+                            Html.div
+                                [ Attr.css
+                                    [ Tw.px_6
+                                    , Tw.flex
+                                    , Tw.flex_row
+                                    , Tw.text_color Tw.white
+                                    , Tw.max_w_7xl
+                                    , Tw.m_auto
+                                    ]
+                                ]
+                                [ Html.div
+                                    [ Attr.css
+                                        [ Tw.flex
+                                        , Tw.flex_col
+                                        , Tw.flex_1
                                         ]
                                     ]
-                                , Html.div []
-                                    [ Html.div [] [ text <| Util.fromIntToCounter model.clock ]
-                                    , text "I am sidebar. Copy link and send to collegues to invite"
-                                    , Html.input [ Attr.readonly True, Attr.value <| model.url ++ "invite/" ++ (model.roomId |> Maybe.withDefault 1 |> String.fromInt) ] []
+                                    [ Html.div
+                                        [ Attr.css
+                                            [ Tw.text_color Tw.white
+                                            , Tw.text_2xl
+                                            , Bp.sm
+                                                [ Tw.mx_auto
+                                                , Tw.w_full
+                                                ]
+                                            ]
+                                        ]
+                                        [ Html.h2 [ Attr.css [ Tw.mt_0, Tw.mb_4 ] ] [ model.roomName |> Maybe.withDefault "Room name is not available" |> text ] ]
+                                    , Html.h4 [ Attr.css [ Tw.text_2xl ] ] [ model.stories |> List.head |> Maybe.withDefault "There are no more stories" |> (++) "[ Current story ] " |> text ]
                                     , Html.div []
-                                        [ text "Users:"
-                                        , Html.ul []
+                                        [ Html.div []
+                                            [ if model.shouldShowCharts then
+                                                viewCharts model
+
+                                              else
+                                                viewCards model
+                                            ]
+                                        ]
+                                    , Html.div [ Attr.css [ Tw.mt_10 ] ]
+                                        [ case model.credentials of
+                                            Admin ->
+                                                Html.div []
+                                                    [ if not <| model.shouldShowCharts && List.length model.stories > 0 then
+                                                        if model.shouldStartClock then
+                                                            Html.div [ Attr.css [ Tw.flex, Tw.gap_4 ] ]
+                                                                [ Html.button
+                                                                    [ Attr.css
+                                                                        [ Tw.bg_color Tw.transparent
+                                                                        , Tw.text_color Tw.white
+                                                                        , Tw.font_semibold
+                                                                        , Tw.py_2
+                                                                        , Tw.transition_all
+                                                                        , Tw.duration_300
+                                                                        , Tw.px_4
+                                                                        , Tw.text_xl
+                                                                        , Tw.border
+                                                                        , Tw.border_color Tw.white
+                                                                        , Tw.rounded
+                                                                        , Tw.cursor_pointer
+                                                                        , Css.hover
+                                                                            [ Tw.bg_color Tw.white
+                                                                            , Tw.text_color Tw.black
+                                                                            , Tw.border_color Tw.transparent
+                                                                            ]
+                                                                        ]
+                                                                    , onClick ResetTime
+                                                                    ]
+                                                                    [ text "Reset timer" ]
+                                                                , Html.button
+                                                                    [ Attr.css
+                                                                        [ Tw.bg_color Tw.transparent
+                                                                        , Tw.text_color Tw.white
+                                                                        , Tw.font_semibold
+                                                                        , Tw.py_2
+                                                                        , Tw.px_4
+                                                                        , Tw.text_xl
+                                                                        , Tw.border
+                                                                        , Tw.transition_all
+                                                                        , Tw.duration_300
+                                                                        , Tw.border_color Tw.white
+                                                                        , Tw.rounded
+                                                                        , Tw.cursor_pointer
+                                                                        , Css.hover
+                                                                            [ Tw.bg_color Tw.white
+                                                                            , Tw.text_color Tw.black
+                                                                            , Tw.border_color Tw.transparent
+                                                                            ]
+                                                                        ]
+                                                                    , onClick FlipCards
+                                                                    ]
+                                                                    [ text "Flip cards" ]
+                                                                , Html.button
+                                                                    [ Attr.css
+                                                                        [ Tw.bg_color Tw.transparent
+                                                                        , Tw.text_color Tw.white
+                                                                        , Tw.font_semibold
+                                                                        , Tw.py_2
+                                                                        , Tw.px_4
+                                                                        , Tw.text_xl
+                                                                        , Tw.transition_all
+                                                                        , Tw.duration_300
+                                                                        , Tw.border
+                                                                        , Tw.border_color Tw.white
+                                                                        , Tw.rounded
+                                                                        , Tw.cursor_pointer
+                                                                        , Css.hover
+                                                                            [ Tw.bg_color Tw.white
+                                                                            , Tw.text_color Tw.black
+                                                                            , Tw.border_color Tw.transparent
+                                                                            ]
+                                                                        ]
+                                                                    , onClick ClearVotes
+                                                                    ]
+                                                                    [ text "Clear votes" ]
+                                                                , Html.button
+                                                                    [ Attr.css
+                                                                        [ Tw.bg_color Tw.transparent
+                                                                        , Tw.text_color Tw.white
+                                                                        , Tw.font_semibold
+                                                                        , Tw.py_2
+                                                                        , Tw.px_4
+                                                                        , Tw.text_xl
+                                                                        , Tw.border
+                                                                        , Tw.transition_all
+                                                                        , Tw.duration_300
+                                                                        , Tw.border_color Tw.white
+                                                                        , Tw.rounded
+                                                                        , Tw.cursor_pointer
+                                                                        , Css.hover
+                                                                            [ Tw.bg_color Tw.white
+                                                                            , Tw.text_color Tw.black
+                                                                            , Tw.border_color Tw.transparent
+                                                                            ]
+                                                                        ]
+                                                                    , onClick NextStory
+                                                                    ]
+                                                                    [ text "Skip story" ]
+                                                                , if model.users |> List.all (\user -> user.hasVoted) then
+                                                                    Html.button
+                                                                        [ Attr.css
+                                                                            [ Tw.bg_color Tw.transparent
+                                                                            , Tw.text_color Tw.white
+                                                                            , Tw.font_semibold
+                                                                            , Tw.py_2
+                                                                            , Tw.px_4
+                                                                            , Tw.text_xl
+                                                                            , Tw.border
+                                                                            , Tw.transition_all
+                                                                            , Tw.duration_300
+                                                                            , Tw.border_color Tw.white
+                                                                            , Tw.rounded
+                                                                            , Tw.cursor_pointer
+                                                                            , Css.hover
+                                                                                [ Tw.bg_color Tw.white
+                                                                                , Tw.text_color Tw.black
+                                                                                , Tw.border_color Tw.transparent
+                                                                                ]
+                                                                            ]
+                                                                        , onClick FinishVoting
+                                                                        ]
+                                                                        [ text "Finish Voting" ]
+
+                                                                  else
+                                                                    text ""
+                                                                ]
+
+                                                        else
+                                                            Html.button
+                                                                [ Attr.css
+                                                                    [ Tw.bg_color Tw.transparent
+                                                                    , Tw.text_color Tw.white
+                                                                    , Tw.font_semibold
+                                                                    , Tw.py_2
+                                                                    , Tw.px_4
+                                                                    , Tw.text_xl
+                                                                    , Tw.border
+                                                                    , Tw.border_color Tw.white
+                                                                    , Tw.rounded
+                                                                    , Tw.transition_all
+                                                                    , Tw.duration_300
+                                                                    , Tw.cursor_pointer
+                                                                    , Css.hover
+                                                                        [ Tw.bg_color Tw.white
+                                                                        , Tw.text_color Tw.black
+                                                                        , Tw.border_color Tw.transparent
+                                                                        ]
+                                                                    ]
+                                                                , onClick StartTime
+                                                                ]
+                                                                [ text "Start timer" ]
+
+                                                      else
+                                                        text ""
+                                                    ]
+
+                                            Employee ->
+                                                text ""
+                                        ]
+                                    , Html.div [ Attr.css [ Tw.mt_10 ] ]
+                                        [ Html.h4 [ Attr.css [ Tw.text_3xl, Tw.m_0, Tw.mb_4 ] ] [ text "Stories:" ]
+                                        ]
+                                    , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.flex_col, Tw.text_2xl, Tw.gap_2 ] ]
+                                        (model.stories
+                                            |> List.map
+                                                (\story ->
+                                                    Html.li [] [ text story ]
+                                                )
+                                        )
+                                    ]
+                                , Html.div
+                                    [ Attr.css
+                                        [ Tw.text_right
+                                        , Tw.mt_48
+                                        , Tw.border_l
+                                        , Tw.border_color Tw.teal_400
+                                        , Tw.border_solid
+                                        , Tw.border_r_0
+                                        , Tw.border_b_0
+                                        , Tw.border_t_0
+                                        , Tw.pl_10
+                                        ]
+                                    ]
+                                    [ Html.div [ Attr.css [ Tw.text_5xl ] ] [ text <| Util.fromIntToCounter model.clock ]
+                                    , Html.p [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400 ] ] [ text "[ Copy link and send to collegues ]" ]
+                                    , Html.div []
+                                        [ Html.input
+                                            [ Attr.readonly True
+                                            , Attr.css
+                                                [ Tw.block
+                                                , Tw.w_full
+                                                , Tw.border_color Tw.white
+                                                , Tw.rounded_md
+                                                , Tw.py_2
+                                                , Tw.pl_3
+                                                , Tw.pr_3
+                                                , Tw.text_color Tw.white
+                                                , Tw.shadow_sm
+                                                , Tw.bg_color Tw.black
+                                                , Tw.font_mono
+                                                , Tw.text_color Tw.teal_400
+                                                , Tw.text_right
+                                                , Css.focus
+                                                    [ Tw.outline_none
+                                                    ]
+                                                , Bp.sm
+                                                    [ Tw.text_sm
+                                                    ]
+                                                ]
+                                            , Attr.value <| model.url ++ "invite/" ++ (model.roomId |> Maybe.withDefault 1 |> String.fromInt)
+                                            ]
+                                            []
+                                        ]
+                                    , Html.div [ Attr.css [ Tw.mt_6 ] ]
+                                        [ Html.h4 [ Attr.css [ Tw.text_3xl, Tw.m_0, Tw.mb_4 ] ] [ text "Team:" ]
+                                        , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.flex_col, Tw.text_2xl, Tw.gap_4 ] ]
                                             (model.users
                                                 |> List.map
                                                     (\{ isAdmin, name, card, hasVoted } ->
                                                         if isAdmin then
                                                             Html.li [ Attr.css [ Tw.text_color Tw.blue_400 ] ]
                                                                 [ Html.div []
-                                                                    [ Html.p [] [ text name ]
+                                                                    [ Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
                                                                     , case model.credentials of
                                                                         Admin ->
                                                                             case card of
                                                                                 Just crd ->
-                                                                                    Html.p [] [ crd |> String.fromFloat |> text ]
+                                                                                    Html.p [ Attr.css [ Tw.m_0 ] ] [ crd |> String.fromFloat |> text ]
 
                                                                                 Nothing ->
                                                                                     text ""
@@ -484,7 +1074,7 @@ view model =
                                                                             if model.shouldFlipCards then
                                                                                 case card of
                                                                                     Just crd ->
-                                                                                        Html.p [] [ crd |> String.fromFloat |> text ]
+                                                                                        Html.p [ Attr.css [ Tw.m_0 ] ] [ crd |> String.fromFloat |> text ]
 
                                                                                     Nothing ->
                                                                                         text ""
@@ -497,12 +1087,12 @@ view model =
                                                         else
                                                             case model.credentials of
                                                                 Admin ->
-                                                                    Html.li []
+                                                                    Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4 ] ]
                                                                         [ Html.div []
-                                                                            [ Html.p [] [ text name ]
+                                                                            [ Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
                                                                             , case card of
                                                                                 Just crd ->
-                                                                                    Html.p [] [ crd |> String.fromFloat |> text ]
+                                                                                    Html.p [ Attr.css [ Tw.m_0 ] ] [ crd |> String.fromFloat |> text ]
 
                                                                                 Nothing ->
                                                                                     text ""
@@ -510,22 +1100,24 @@ view model =
                                                                         ]
 
                                                                 Employee ->
-                                                                    Html.li []
+                                                                    Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4 ] ]
                                                                         [ Html.div []
-                                                                            [ Html.p [] [ text name ]
-                                                                            , if model.shouldFlipCards then
-                                                                                case card of
-                                                                                    Just crd ->
-                                                                                        Html.p [] [ crd |> String.fromFloat |> text ]
-
-                                                                                    Nothing ->
-                                                                                        text ""
+                                                                            [ if hasVoted then
+                                                                                Html.span [ Attr.css [ Tw.m_0 ] ] [ 0xA936 |> Char.fromCode |> String.fromChar |> text ]
 
                                                                               else
                                                                                 text ""
                                                                             ]
-                                                                        , if hasVoted then
-                                                                            Html.p [] [ text "📜" ]
+                                                                        , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
+                                                                        , if model.shouldFlipCards then
+                                                                            case card of
+                                                                                Just crd ->
+                                                                                    Html.p [ Attr.css [ Tw.m_0 ] ]
+                                                                                        [ Html.span [] [ crd |> String.fromFloat |> text ]
+                                                                                        ]
+
+                                                                                Nothing ->
+                                                                                    text ""
 
                                                                           else
                                                                             text ""
@@ -534,52 +1126,33 @@ view model =
                                             )
                                         ]
                                     ]
-                                , Html.div []
-                                    [ case model.credentials of
-                                        Admin ->
-                                            Html.div []
-                                                [ if not <| model.shouldShowCharts && List.length model.stories > 0 then
-                                                    if model.shouldStartClock then
-                                                        Html.div []
-                                                            [ Html.button [ onClick ResetTime ] [ text "Reset timer" ]
-                                                            , Html.button [ onClick FlipCards ] [ text "Flip cards" ]
-                                                            , Html.button [ onClick ClearVotes ] [ text "Clear votes" ]
-                                                            , Html.button [ onClick NextStory ] [ text "Skip story" ]
-                                                            , if model.users |> List.all (\user -> user.hasVoted) then
-                                                                Html.button [ onClick FinishVoting ] [ text "Finish Voting" ]
-
-                                                              else
-                                                                text ""
-                                                            ]
-
-                                                    else
-                                                        Html.button [ onClick StartTime ] [ text "Start timer" ]
-
-                                                  else
-                                                    text ""
-                                                ]
-
-                                        Employee ->
-                                            text ""
-                                    ]
-                                , Html.div []
-                                    [ text "I am bottom tabs, I present stories"
-                                    ]
-                                , Html.ul []
-                                    (model.stories
-                                        |> List.map
-                                            (\story ->
-                                                Html.li [] [ text story ]
-                                            )
-                                    )
                                 ]
 
                         Step404 ->
-                            Html.div []
-                                [ Html.div []
-                                    [ Html.h2 [] [ text "4 ō 4 bud..." ]
+                            Html.div
+                                [ Attr.css
+                                    [ Tw.px_6
+                                    , Tw.flex
+                                    , Tw.flex_row
+                                    , Tw.text_color Tw.white
+                                    , Tw.max_w_7xl
+                                    , Tw.m_auto
+                                    ]
+                                ]
+                                [ Html.div
+                                    [ Attr.css
+                                        [ Tw.text_color Tw.white
+                                        , Tw.text_2xl
+                                        , Bp.sm
+                                            [ Tw.mx_auto
+                                            , Tw.w_full
+                                            , Tw.max_w_sm
+                                            ]
+                                        ]
+                                    ]
+                                    [ Html.h2 [ Attr.css [ Tw.mt_0, Tw.mb_4 ] ] [ text "4 ō 4 bud..." ]
                                     , Html.p [] [ text "Nothing to see here -_-" ]
-                                    , Html.a [ Attr.href "/" ] [ text "Go Home" ]
+                                    , Html.a [ Attr.css [ Tw.text_xl, Tw.text_color Tw.teal_400 ], Attr.href "/" ] [ text "Go Home" ]
                                     ]
                                 ]
                     ]
@@ -601,27 +1174,53 @@ cards =
     , { name = "40", value = 40 }
     , { name = "100", value = 100 }
     , { name = "?", value = 0 }
-    , { name = "Coffee Breaker", value = 0 }
+    , { name = 0x2615 |> Char.fromCode |> String.fromChar, value = 0 }
     ]
 
 
 viewCards : FrontendModel -> Html FrontendMsg
 viewCards model =
-    Html.ul []
-        (cards
-            |> List.map
-                (\card ->
-                    Html.li
-                        (if model.shouldStartClock then
-                            [ onClick <| ChooseCard card.value ]
+    Html.div []
+        [ Html.h3 [ Attr.css [ Tw.text_color Tw.gray_400, Tw.font_light ] ] [ text "[ Pick card to estimate story ]" ]
+        , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.flex_wrap, Tw.p_0, Tw.m_0, Tw.gap_10, Tw.text_2xl ] ]
+            (cards
+                |> List.map
+                    (\card ->
+                        Html.li
+                            (if True then
+                                [ Attr.css
+                                    [ Tw.flex
+                                    , Tw.border_color Tw.white
+                                    , Tw.border_solid
+                                    , Tw.border_2
+                                    , Tw.justify_center
+                                    , Tw.w_1over4
+                                    , Tw.p_5
+                                    , Tw.transition_all
+                                    , Tw.duration_300
+                                    , Tw.relative
+                                    , Tw.cursor_pointer
+                                    , Css.hover
+                                        [ Tw.bg_color Tw.white
+                                        , Tw.border_color Tw.white
+                                        , Tw.text_color Tw.black
+                                        , Tw.rounded
+                                        , Tw.font_bold
+                                        , Tw.text_7xl
+                                        , Tw.p_0
+                                        ]
+                                    ]
+                                , onClick <| ChooseCard card.value
+                                ]
 
-                         else
-                            []
-                        )
-                        [ Html.span [] [ text card.name ]
-                        ]
-                )
-        )
+                             else
+                                []
+                            )
+                            [ Html.span [] [ text card.name ]
+                            ]
+                    )
+            )
+        ]
 
 
 viewCharts : FrontendModel -> Html FrontendMsg
