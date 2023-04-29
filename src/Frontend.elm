@@ -77,6 +77,7 @@ initialModel url key =
     , shouldStartClock = False
     , shouldFlipCards = False
     , shouldShowCharts = False
+    , card = Nothing
     }
 
 
@@ -209,12 +210,12 @@ update msg model =
             ( { model | name = Just str, error = Nothing }, Cmd.none )
 
         StoreRoom str ->
-            ( { model | roomName = Just str }, Cmd.none )
+            ( { model | roomName = Just str, error = Nothing }, Cmd.none )
 
         StoreStory str ->
-            ( { model | story = Just str }, Cmd.none )
+            ( { model | story = Just str, error = Nothing }, Cmd.none )
 
-        ChooseCard cardValue ->
+        ChooseCard cardValue cardName ->
             case model.clientId of
                 Just justClientId ->
                     let
@@ -229,7 +230,7 @@ update msg model =
                                             user
                                     )
                     in
-                    ( { model | users = updatedUsers }, sendToBackend <| SendCard cardValue (model.roomId |> Maybe.withDefault 1) )
+                    ( { model | users = updatedUsers, card = Just cardName }, sendToBackend <| SendCard cardValue (model.roomId |> Maybe.withDefault 1) )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -419,19 +420,23 @@ view model =
                                         , Attr.css
                                             [ Tw.block
                                             , Tw.w_full
-                                            , Tw.border_color Tw.gray_300
+                                            , Tw.form_input
                                             , Tw.rounded_md
-                                            , Tw.py_2
-                                            , Tw.pl_3
-                                            , Tw.pr_3
-                                            , Tw.text_color Tw.white
+                                            , Tw.border_0
+                                            , Tw.py_1_dot_5
+                                            , Tw.text_color Tw.gray_900
                                             , Tw.shadow_sm
-                                            , Tw.bg_color Tw.black
+                                            , Tw.ring_1
+                                            , Tw.ring_inset
+                                            , Tw.ring_color Tw.gray_300
                                             , Css.focus
-                                                [ Tw.outline_none
+                                                [ Tw.ring_2
+                                                , Tw.ring_inset
+                                                , Tw.ring_color Tw.teal_400
                                                 ]
                                             , Bp.sm
-                                                [ Tw.text_xl
+                                                [ Tw.text_lg
+                                                , Tw.leading_6
                                                 ]
                                             ]
                                         , onInput StoreName
@@ -456,7 +461,6 @@ view model =
                                         , Attr.css
                                             [ Tw.bg_color Tw.transparent
                                             , Tw.text_color Tw.white
-                                            , Tw.font_semibold
                                             , Tw.py_2
                                             , Tw.px_4
                                             , Tw.text_2xl
@@ -517,19 +521,23 @@ view model =
                                         , Attr.css
                                             [ Tw.block
                                             , Tw.w_full
-                                            , Tw.border_color Tw.gray_300
+                                            , Tw.form_input
                                             , Tw.rounded_md
-                                            , Tw.py_2
-                                            , Tw.pl_3
-                                            , Tw.pr_3
-                                            , Tw.text_color Tw.white
+                                            , Tw.border_0
+                                            , Tw.py_1_dot_5
+                                            , Tw.text_color Tw.gray_900
                                             , Tw.shadow_sm
-                                            , Tw.bg_color Tw.black
+                                            , Tw.ring_1
+                                            , Tw.ring_inset
+                                            , Tw.ring_color Tw.gray_300
                                             , Css.focus
-                                                [ Tw.outline_none
+                                                [ Tw.ring_2
+                                                , Tw.ring_inset
+                                                , Tw.ring_color Tw.teal_400
                                                 ]
                                             , Bp.sm
-                                                [ Tw.text_xl
+                                                [ Tw.text_lg
+                                                , Tw.leading_6
                                                 ]
                                             ]
                                         , onInput StoreName
@@ -553,7 +561,6 @@ view model =
                                         [ Attr.css
                                             [ Tw.bg_color Tw.transparent
                                             , Tw.text_color Tw.white
-                                            , Tw.font_semibold
                                             , Tw.py_2
                                             , Tw.px_4
                                             , Tw.text_2xl
@@ -617,19 +624,23 @@ view model =
                                         , Attr.css
                                             [ Tw.block
                                             , Tw.w_full
-                                            , Tw.border_color Tw.gray_300
+                                            , Tw.form_input
                                             , Tw.rounded_md
-                                            , Tw.py_2
-                                            , Tw.pl_3
-                                            , Tw.pr_3
-                                            , Tw.text_color Tw.white
+                                            , Tw.border_0
+                                            , Tw.py_1_dot_5
+                                            , Tw.text_color Tw.gray_900
                                             , Tw.shadow_sm
-                                            , Tw.bg_color Tw.black
+                                            , Tw.ring_1
+                                            , Tw.ring_inset
+                                            , Tw.ring_color Tw.gray_300
                                             , Css.focus
-                                                [ Tw.outline_none
+                                                [ Tw.ring_2
+                                                , Tw.ring_inset
+                                                , Tw.ring_color Tw.teal_400
                                                 ]
                                             , Bp.sm
-                                                [ Tw.text_xl
+                                                [ Tw.text_lg
+                                                , Tw.leading_6
                                                 ]
                                             ]
                                         , onInput StoreRoom
@@ -654,7 +665,6 @@ view model =
                                         , Attr.css
                                             [ Tw.bg_color Tw.transparent
                                             , Tw.text_color Tw.white
-                                            , Tw.font_semibold
                                             , Tw.py_2
                                             , Tw.transition_all
                                             , Tw.duration_300
@@ -678,7 +688,8 @@ view model =
                         CreateStoryStep ->
                             Html.div
                                 [ Attr.css
-                                    [ Tw.flex
+                                    [ Tw.text_color Tw.white
+                                    , Tw.flex
                                     , Tw.min_h_full
                                     , Tw.flex_col
                                     , Tw.justify_center
@@ -691,8 +702,7 @@ view model =
                                 ]
                                 [ Html.div
                                     [ Attr.css
-                                        [ Tw.text_color Tw.white
-                                        , Tw.text_2xl
+                                        [ Tw.text_2xl
                                         , Bp.sm
                                             [ Tw.mx_auto
                                             , Tw.w_full
@@ -711,25 +721,47 @@ view model =
                                         ]
                                     ]
                                     [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0 ] ] [ text "[ Add multiple or one story ]" ]
+                                    , Html.div [ Attr.css [ Tw.relative, Tw.mx_auto ] ]
+                                        [ Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.text_2xl, Tw.gap_4, Tw.absolute, Tw.w_full ] ]
+                                            (model.stories
+                                                |> List.map
+                                                    (\story ->
+                                                        Html.li
+                                                            [ Attr.css
+                                                                [ Tw.transition_all
+                                                                , Tw.absolute
+                                                                , Tw.w_full
+                                                                ]
+                                                            , Attr.class
+                                                                "hide-after-n"
+                                                            ]
+                                                            [ text story ]
+                                                    )
+                                            )
+                                        ]
                                     , Html.input
                                         [ Attr.type_ "text"
                                         , onInput StoreStory
                                         , Attr.css
                                             [ Tw.block
                                             , Tw.w_full
-                                            , Tw.border_color Tw.gray_300
+                                            , Tw.form_input
                                             , Tw.rounded_md
-                                            , Tw.py_2
-                                            , Tw.pl_3
-                                            , Tw.pr_3
-                                            , Tw.text_color Tw.white
+                                            , Tw.border_0
+                                            , Tw.py_1_dot_5
+                                            , Tw.text_color Tw.gray_900
                                             , Tw.shadow_sm
-                                            , Tw.bg_color Tw.black
+                                            , Tw.ring_1
+                                            , Tw.ring_inset
+                                            , Tw.ring_color Tw.gray_300
                                             , Css.focus
-                                                [ Tw.outline_none
+                                                [ Tw.ring_2
+                                                , Tw.ring_inset
+                                                , Tw.ring_color Tw.teal_400
                                                 ]
                                             , Bp.sm
-                                                [ Tw.text_xl
+                                                [ Tw.text_lg
+                                                , Tw.leading_6
                                                 ]
                                             ]
                                         , model.story
@@ -753,7 +785,6 @@ view model =
                                         , Attr.css
                                             [ Tw.bg_color Tw.transparent
                                             , Tw.text_color Tw.white
-                                            , Tw.font_semibold
                                             , Tw.py_2
                                             , Tw.px_4
                                             , Tw.text_xl
@@ -777,7 +808,6 @@ view model =
                                         , Attr.css
                                             [ Tw.bg_color Tw.transparent
                                             , Tw.text_color Tw.white
-                                            , Tw.font_semibold
                                             , Tw.py_2
                                             , Tw.px_4
                                             , Tw.text_xl
@@ -827,7 +857,7 @@ view model =
                                             ]
                                         ]
                                         [ Html.h2 [ Attr.css [ Tw.mt_0, Tw.mb_4 ] ] [ model.roomName |> Maybe.withDefault "Room name is not available" |> text ] ]
-                                    , Html.h4 [ Attr.css [ Tw.text_2xl ] ] [ model.stories |> List.head |> Maybe.withDefault "There are no more stories" |> (++) "[ Current story ] " |> text ]
+                                    , Html.h4 [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400 ] ] [ model.stories |> List.head |> Maybe.withDefault "There are no more stories" |> (++) "[ Current story ] " |> text ]
                                     , Html.div []
                                         [ Html.div []
                                             [ if model.shouldShowCharts then
@@ -848,7 +878,6 @@ view model =
                                                                     [ Attr.css
                                                                         [ Tw.bg_color Tw.transparent
                                                                         , Tw.text_color Tw.white
-                                                                        , Tw.font_semibold
                                                                         , Tw.py_2
                                                                         , Tw.transition_all
                                                                         , Tw.duration_300
@@ -871,7 +900,6 @@ view model =
                                                                     [ Attr.css
                                                                         [ Tw.bg_color Tw.transparent
                                                                         , Tw.text_color Tw.white
-                                                                        , Tw.font_semibold
                                                                         , Tw.py_2
                                                                         , Tw.px_4
                                                                         , Tw.text_xl
@@ -894,7 +922,6 @@ view model =
                                                                     [ Attr.css
                                                                         [ Tw.bg_color Tw.transparent
                                                                         , Tw.text_color Tw.white
-                                                                        , Tw.font_semibold
                                                                         , Tw.py_2
                                                                         , Tw.px_4
                                                                         , Tw.text_xl
@@ -917,7 +944,6 @@ view model =
                                                                     [ Attr.css
                                                                         [ Tw.bg_color Tw.transparent
                                                                         , Tw.text_color Tw.white
-                                                                        , Tw.font_semibold
                                                                         , Tw.py_2
                                                                         , Tw.px_4
                                                                         , Tw.text_xl
@@ -941,7 +967,6 @@ view model =
                                                                         [ Attr.css
                                                                             [ Tw.bg_color Tw.transparent
                                                                             , Tw.text_color Tw.white
-                                                                            , Tw.font_semibold
                                                                             , Tw.py_2
                                                                             , Tw.px_4
                                                                             , Tw.text_xl
@@ -970,7 +995,6 @@ view model =
                                                                 [ Attr.css
                                                                     [ Tw.bg_color Tw.transparent
                                                                     , Tw.text_color Tw.white
-                                                                    , Tw.font_semibold
                                                                     , Tw.py_2
                                                                     , Tw.px_4
                                                                     , Tw.text_xl
@@ -1058,14 +1082,13 @@ view model =
                                                 |> List.map
                                                     (\{ isAdmin, name, card, hasVoted } ->
                                                         if isAdmin then
-                                                            Html.li [ Attr.css [ Tw.text_color Tw.blue_400 ] ]
+                                                            Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.text_color Tw.blue_400 ] ]
                                                                 [ Html.div []
-                                                                    [ Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
-                                                                    , case model.credentials of
+                                                                    [ case model.credentials of
                                                                         Admin ->
                                                                             case card of
                                                                                 Just crd ->
-                                                                                    Html.p [ Attr.css [ Tw.m_0 ] ] [ crd |> String.fromFloat |> text ]
+                                                                                    Html.span [ Attr.css [] ] [ crd |> String.fromFloat |> text ]
 
                                                                                 Nothing ->
                                                                                     text ""
@@ -1074,7 +1097,7 @@ view model =
                                                                             if model.shouldFlipCards then
                                                                                 case card of
                                                                                     Just crd ->
-                                                                                        Html.p [ Attr.css [ Tw.m_0 ] ] [ crd |> String.fromFloat |> text ]
+                                                                                        Html.span [ Attr.css [] ] [ crd |> String.fromFloat |> text ]
 
                                                                                     Nothing ->
                                                                                         text ""
@@ -1082,6 +1105,7 @@ view model =
                                                                             else
                                                                                 text ""
                                                                     ]
+                                                                , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
                                                                 ]
 
                                                         else
@@ -1089,26 +1113,25 @@ view model =
                                                                 Admin ->
                                                                     Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4 ] ]
                                                                         [ Html.div []
-                                                                            [ Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
-                                                                            , case card of
+                                                                            [ case card of
                                                                                 Just crd ->
-                                                                                    Html.p [ Attr.css [ Tw.m_0 ] ] [ crd |> String.fromFloat |> text ]
+                                                                                    Html.span [ Attr.css [] ] [ crd |> String.fromFloat |> text ]
 
                                                                                 Nothing ->
                                                                                     text ""
                                                                             ]
+                                                                        , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
                                                                         ]
 
                                                                 Employee ->
                                                                     Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4 ] ]
                                                                         [ Html.div []
-                                                                            [ if hasVoted then
+                                                                            [ if hasVoted && not model.shouldFlipCards then
                                                                                 Html.span [ Attr.css [ Tw.m_0 ] ] [ 0xA936 |> Char.fromCode |> String.fromChar |> text ]
 
                                                                               else
                                                                                 text ""
                                                                             ]
-                                                                        , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
                                                                         , if model.shouldFlipCards then
                                                                             case card of
                                                                                 Just crd ->
@@ -1121,6 +1144,7 @@ view model =
 
                                                                           else
                                                                             text ""
+                                                                        , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
                                                                         ]
                                                     )
                                             )
@@ -1187,35 +1211,73 @@ viewCards model =
                 |> List.map
                     (\card ->
                         Html.li
-                            (if True then
-                                [ Attr.css
-                                    [ Tw.flex
-                                    , Tw.border_color Tw.white
-                                    , Tw.border_solid
-                                    , Tw.border_2
-                                    , Tw.justify_center
-                                    , Tw.w_1over4
-                                    , Tw.p_5
-                                    , Tw.transition_all
-                                    , Tw.duration_300
-                                    , Tw.relative
-                                    , Tw.cursor_pointer
-                                    , Css.hover
-                                        [ Tw.bg_color Tw.white
-                                        , Tw.border_color Tw.white
-                                        , Tw.text_color Tw.black
-                                        , Tw.rounded
-                                        , Tw.font_bold
-                                        , Tw.text_7xl
-                                        , Tw.p_0
-                                        ]
-                                    ]
-                                , onClick <| ChooseCard card.value
+                            [ Attr.css
+                                [ Tw.flex
+                                , Tw.border_color Tw.white
+                                , Tw.border_solid
+                                , Tw.border_2
+                                , Tw.justify_center
+                                , Tw.w_1over4
+                                , Tw.transition_all
+                                , Tw.duration_300
+                                , Tw.relative
+                                , Tw.cursor_pointer
                                 ]
+                            , if model.shouldStartClock then
+                                onClick (ChooseCard card.value card.name)
 
-                             else
-                                []
-                            )
+                              else
+                                Attr.css []
+                            , case model.card of
+                                Just crd ->
+                                    if crd == card.name then
+                                        Attr.css
+                                            [ Tw.bg_color Tw.white
+                                            , Tw.border_color Tw.white
+                                            , Tw.text_color Tw.black
+                                            , Tw.rounded
+                                            , Tw.font_bold
+                                            , Tw.text_7xl
+                                            , Tw.p_0
+                                            , Css.hover
+                                                [ Tw.p_0
+                                                ]
+                                            ]
+
+                                    else
+                                        Attr.css
+                                            [ Tw.p_5
+                                            , Css.hover
+                                                [ Tw.bg_color Tw.white
+                                                , Tw.border_color Tw.white
+                                                , Tw.text_color Tw.black
+                                                , Tw.rounded
+                                                , Tw.font_bold
+                                                , Tw.text_7xl
+                                                , Tw.p_0
+                                                ]
+                                            ]
+
+                                Nothing ->
+                                    Attr.css
+                                        [ Tw.flex
+                                        , Tw.border_color Tw.white
+                                        , Tw.border_solid
+                                        , Tw.border_2
+                                        , Tw.justify_center
+                                        , Tw.w_1over4
+                                        , Tw.p_5
+                                        , Css.hover
+                                            [ Tw.bg_color Tw.white
+                                            , Tw.border_color Tw.white
+                                            , Tw.text_color Tw.black
+                                            , Tw.rounded
+                                            , Tw.font_bold
+                                            , Tw.text_7xl
+                                            , Tw.p_0
+                                            ]
+                                        ]
+                            ]
                             [ Html.span [] [ text card.name ]
                             ]
                     )

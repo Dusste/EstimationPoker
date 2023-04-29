@@ -25,6 +25,7 @@ type alias FrontendModel =
     , shouldStartClock : Bool
     , shouldFlipCards : Bool
     , shouldShowCharts : Bool
+    , card : Maybe String
     }
 
 
@@ -115,7 +116,7 @@ type FrontendMsg
     | SendRoom
     | SendStory
     | SaveStory
-    | ChooseCard Float
+    | ChooseCard Float String
     | Tick Time.Posix
     | StartTime
     | ResetTime
