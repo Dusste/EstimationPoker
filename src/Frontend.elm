@@ -4,7 +4,7 @@ import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav
 import Css
 import Css.Global
-import Html.Styled as Html exposing (Html, text)
+import Html.Styled as Html exposing (Attribute, Html, text)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events exposing (onClick, onInput)
 import Lamdera exposing (sendToBackend)
@@ -456,27 +456,7 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ Html.button
-                                        [ onClick <| SendName Admin
-                                        , Attr.css
-                                            [ Tw.bg_color Tw.transparent
-                                            , Tw.text_color Tw.white
-                                            , Tw.py_2
-                                            , Tw.px_4
-                                            , Tw.text_2xl
-                                            , Tw.border
-                                            , Tw.border_color Tw.white
-                                            , Tw.rounded
-                                            , Tw.cursor_pointer
-                                            , Css.hover
-                                                [ Tw.bg_color Tw.white
-                                                , Tw.text_color Tw.black
-                                                , Tw.border_color Tw.transparent
-                                                ]
-                                            ]
-                                        ]
-                                        [ text "Save" ]
-                                    ]
+                                    [ viewButtonWithMsg (SendName Admin) "Save" ]
                                 ]
 
                         EnterNameStep ->
@@ -557,30 +537,7 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ Html.button
-                                        [ Attr.css
-                                            [ Tw.bg_color Tw.transparent
-                                            , Tw.text_color Tw.white
-                                            , Tw.py_2
-                                            , Tw.px_4
-                                            , Tw.text_2xl
-                                            , Tw.border
-                                            , Tw.transition_all
-                                            , Tw.duration_300
-                                            , Tw.border_color Tw.white
-                                            , Tw.rounded
-                                            , Tw.cursor_pointer
-                                            , Css.hover
-                                                [ Tw.bg_color Tw.white
-                                                , Tw.text_color Tw.black
-                                                , Tw.border_color Tw.transparent
-                                                ]
-                                            ]
-                                        , onClick <|
-                                            SendName Employee
-                                        ]
-                                        [ text "Save" ]
-                                    ]
+                                    [ viewButtonWithMsg (SendName Employee) "Save" ]
                                 ]
 
                         CreateRoomStep ->
@@ -660,29 +617,7 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ Html.button
-                                        [ onClick SendRoom
-                                        , Attr.css
-                                            [ Tw.bg_color Tw.transparent
-                                            , Tw.text_color Tw.white
-                                            , Tw.py_2
-                                            , Tw.transition_all
-                                            , Tw.duration_300
-                                            , Tw.px_4
-                                            , Tw.text_2xl
-                                            , Tw.border
-                                            , Tw.border_color Tw.white
-                                            , Tw.rounded
-                                            , Tw.cursor_pointer
-                                            , Css.hover
-                                                [ Tw.bg_color Tw.white
-                                                , Tw.text_color Tw.black
-                                                , Tw.border_color Tw.transparent
-                                                ]
-                                            ]
-                                        ]
-                                        [ text "Create" ]
-                                    ]
+                                    [ viewButtonWithMsg SendRoom "Create" ]
                                 ]
 
                         CreateStoryStep ->
@@ -777,54 +712,14 @@ view model =
                                             [ Tw.mx_auto
                                             , Tw.w_full
                                             , Tw.max_w_sm
+                                            , Tw.flex
+                                            , Tw.gap_6
+                                            , Tw.justify_center
                                             ]
                                         ]
                                     ]
-                                    [ Html.button
-                                        [ onClick SendStory
-                                        , Attr.css
-                                            [ Tw.bg_color Tw.transparent
-                                            , Tw.text_color Tw.white
-                                            , Tw.py_2
-                                            , Tw.px_4
-                                            , Tw.text_xl
-                                            , Tw.border
-                                            , Tw.mr_6
-                                            , Tw.transition_all
-                                            , Tw.duration_300
-                                            , Tw.border_color Tw.white
-                                            , Tw.rounded
-                                            , Tw.cursor_pointer
-                                            , Css.hover
-                                                [ Tw.bg_color Tw.white
-                                                , Tw.text_color Tw.black
-                                                , Tw.border_color Tw.transparent
-                                                ]
-                                            ]
-                                        ]
-                                        [ text "Add new" ]
-                                    , Html.button
-                                        [ onClick SaveStory
-                                        , Attr.css
-                                            [ Tw.bg_color Tw.transparent
-                                            , Tw.text_color Tw.white
-                                            , Tw.py_2
-                                            , Tw.px_4
-                                            , Tw.text_xl
-                                            , Tw.transition_all
-                                            , Tw.duration_300
-                                            , Tw.border
-                                            , Tw.border_color Tw.white
-                                            , Tw.rounded
-                                            , Tw.cursor_pointer
-                                            , Css.hover
-                                                [ Tw.bg_color Tw.white
-                                                , Tw.text_color Tw.black
-                                                , Tw.border_color Tw.transparent
-                                                ]
-                                            ]
-                                        ]
-                                        [ text "Save" ]
+                                    [ viewButtonWithMsg SendStory "Add New"
+                                    , viewButtonWithMsg SaveStory "Save"
                                     ]
                                 ]
 
@@ -874,145 +769,19 @@ view model =
                                                     [ if not <| model.shouldShowCharts && List.length model.stories > 0 then
                                                         if model.shouldStartClock then
                                                             Html.div [ Attr.css [ Tw.flex, Tw.gap_4 ] ]
-                                                                [ Html.button
-                                                                    [ Attr.css
-                                                                        [ Tw.bg_color Tw.transparent
-                                                                        , Tw.text_color Tw.white
-                                                                        , Tw.py_2
-                                                                        , Tw.transition_all
-                                                                        , Tw.duration_300
-                                                                        , Tw.px_4
-                                                                        , Tw.text_xl
-                                                                        , Tw.border
-                                                                        , Tw.border_color Tw.white
-                                                                        , Tw.rounded
-                                                                        , Tw.cursor_pointer
-                                                                        , Css.hover
-                                                                            [ Tw.bg_color Tw.white
-                                                                            , Tw.text_color Tw.black
-                                                                            , Tw.border_color Tw.transparent
-                                                                            ]
-                                                                        ]
-                                                                    , onClick ResetTime
-                                                                    ]
-                                                                    [ text "Reset timer" ]
-                                                                , Html.button
-                                                                    [ Attr.css
-                                                                        [ Tw.bg_color Tw.transparent
-                                                                        , Tw.text_color Tw.white
-                                                                        , Tw.py_2
-                                                                        , Tw.px_4
-                                                                        , Tw.text_xl
-                                                                        , Tw.border
-                                                                        , Tw.transition_all
-                                                                        , Tw.duration_300
-                                                                        , Tw.border_color Tw.white
-                                                                        , Tw.rounded
-                                                                        , Tw.cursor_pointer
-                                                                        , Css.hover
-                                                                            [ Tw.bg_color Tw.white
-                                                                            , Tw.text_color Tw.black
-                                                                            , Tw.border_color Tw.transparent
-                                                                            ]
-                                                                        ]
-                                                                    , onClick FlipCards
-                                                                    ]
-                                                                    [ text "Flip cards" ]
-                                                                , Html.button
-                                                                    [ Attr.css
-                                                                        [ Tw.bg_color Tw.transparent
-                                                                        , Tw.text_color Tw.white
-                                                                        , Tw.py_2
-                                                                        , Tw.px_4
-                                                                        , Tw.text_xl
-                                                                        , Tw.transition_all
-                                                                        , Tw.duration_300
-                                                                        , Tw.border
-                                                                        , Tw.border_color Tw.white
-                                                                        , Tw.rounded
-                                                                        , Tw.cursor_pointer
-                                                                        , Css.hover
-                                                                            [ Tw.bg_color Tw.white
-                                                                            , Tw.text_color Tw.black
-                                                                            , Tw.border_color Tw.transparent
-                                                                            ]
-                                                                        ]
-                                                                    , onClick ClearVotes
-                                                                    ]
-                                                                    [ text "Clear votes" ]
-                                                                , Html.button
-                                                                    [ Attr.css
-                                                                        [ Tw.bg_color Tw.transparent
-                                                                        , Tw.text_color Tw.white
-                                                                        , Tw.py_2
-                                                                        , Tw.px_4
-                                                                        , Tw.text_xl
-                                                                        , Tw.border
-                                                                        , Tw.transition_all
-                                                                        , Tw.duration_300
-                                                                        , Tw.border_color Tw.white
-                                                                        , Tw.rounded
-                                                                        , Tw.cursor_pointer
-                                                                        , Css.hover
-                                                                            [ Tw.bg_color Tw.white
-                                                                            , Tw.text_color Tw.black
-                                                                            , Tw.border_color Tw.transparent
-                                                                            ]
-                                                                        ]
-                                                                    , onClick NextStory
-                                                                    ]
-                                                                    [ text "Skip story" ]
+                                                                [ viewButtonWithMsg ResetTime "Reset timer"
+                                                                , viewButtonWithMsg FlipCards "Flip cards"
+                                                                , viewButtonWithMsg ClearVotes "Clear votes"
+                                                                , viewButtonWithMsg NextStory "Skip story"
                                                                 , if model.users |> List.all (\user -> user.hasVoted) then
-                                                                    Html.button
-                                                                        [ Attr.css
-                                                                            [ Tw.bg_color Tw.transparent
-                                                                            , Tw.text_color Tw.white
-                                                                            , Tw.py_2
-                                                                            , Tw.px_4
-                                                                            , Tw.text_xl
-                                                                            , Tw.border
-                                                                            , Tw.transition_all
-                                                                            , Tw.duration_300
-                                                                            , Tw.border_color Tw.white
-                                                                            , Tw.rounded
-                                                                            , Tw.cursor_pointer
-                                                                            , Css.hover
-                                                                                [ Tw.bg_color Tw.white
-                                                                                , Tw.text_color Tw.black
-                                                                                , Tw.border_color Tw.transparent
-                                                                                ]
-                                                                            ]
-                                                                        , onClick FinishVoting
-                                                                        ]
-                                                                        [ text "Finish Voting" ]
+                                                                    viewButtonWithMsg FinishVoting "Finish Voting"
 
                                                                   else
                                                                     text ""
                                                                 ]
 
                                                         else
-                                                            Html.button
-                                                                [ Attr.css
-                                                                    [ Tw.bg_color Tw.transparent
-                                                                    , Tw.text_color Tw.white
-                                                                    , Tw.py_2
-                                                                    , Tw.px_4
-                                                                    , Tw.text_xl
-                                                                    , Tw.border
-                                                                    , Tw.border_color Tw.white
-                                                                    , Tw.rounded
-                                                                    , Tw.transition_all
-                                                                    , Tw.duration_300
-                                                                    , Tw.cursor_pointer
-                                                                    , Css.hover
-                                                                        [ Tw.bg_color Tw.white
-                                                                        , Tw.text_color Tw.black
-                                                                        , Tw.border_color Tw.transparent
-                                                                        ]
-                                                                    ]
-                                                                , onClick StartTime
-                                                                ]
-                                                                [ text "Start timer" ]
+                                                            viewButtonWithMsg StartTime "Start timer"
 
                                                       else
                                                         text ""
@@ -1318,7 +1087,7 @@ viewCharts model =
                     Html.p [] [ text "No more stories to estimate ! You are done !" ]
 
                 else if model.shouldShowCharts then
-                    Html.button [ onClick NextStory ] [ text "Next Story" ]
+                    viewButtonWithMsg NextStory "Next Story"
 
                 else
                     text ""
@@ -1352,3 +1121,27 @@ viewCharts model =
                     )
             )
         ]
+
+
+buttonStyle : List Css.Style
+buttonStyle =
+    [ Tw.bg_color Tw.transparent
+    , Tw.text_color Tw.white
+    , Tw.py_2
+    , Tw.px_4
+    , Tw.text_2xl
+    , Tw.border
+    , Tw.border_color Tw.white
+    , Tw.rounded
+    , Tw.cursor_pointer
+    , Css.hover
+        [ Tw.bg_color Tw.white
+        , Tw.text_color Tw.black
+        , Tw.border_color Tw.transparent
+        ]
+    ]
+
+
+viewButtonWithMsg : FrontendMsg -> String -> Html FrontendMsg
+viewButtonWithMsg msg label =
+    Html.button [ Attr.css buttonStyle, onClick msg ] [ text label ]
