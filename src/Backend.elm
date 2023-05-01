@@ -296,6 +296,35 @@ updateFromFrontend sessionId clientId msg model =
             in
             ( { model | rooms = updateRooms }, notifyCertainUsersAboutSomething updateUsers UsersCardReset sendToFrontend |> Cmd.batch )
 
+        SignalSkipStory roomId ->
+            let
+                { users } =
+                    model.rooms
+                        |> Dict.get roomId
+                        |> Maybe.withDefault defaultRoom
+
+                updateUsers =
+                    users
+                        |> List.map
+                            (\user -> { user | card = Nothing, hasVoted = False })
+
+                updateRecord =
+                    Maybe.map (\room -> { room | users = updateUsers })
+
+                updateRooms =
+                    Dict.update roomId updateRecord model.rooms
+
+                notifyCertainUsersAboutSomething : List User -> (List User -> toFrontend) -> (ClientId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
+                notifyCertainUsersAboutSomething usrs msgToFe f =
+                    case usrs of
+                        [] ->
+                            []
+
+                        x :: xs ->
+                            (f x.clientId <| msgToFe updateUsers) :: notifyCertainUsersAboutSomething xs msgToFe f
+            in
+            ( { model | rooms = updateRooms }, notifyCertainUsersAboutSomething updateUsers SkipStoryAndExposeCharts sendToFrontend |> Cmd.batch )
+
         SignalShowCharts roomId ->
             let
                 { users } =

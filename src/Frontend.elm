@@ -4,7 +4,7 @@ import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav
 import Css
 import Css.Global
-import Html.Styled as Html exposing (Attribute, Html, text)
+import Html.Styled as Html exposing (Html, text)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events exposing (onClick, onInput)
 import Lamdera exposing (sendToBackend)
@@ -248,17 +248,20 @@ update msg model =
             ( { model | shouldFlipCards = not <| model.shouldFlipCards }, sendToBackend <| InitiateFlipCards (model.roomId |> Maybe.withDefault 1) )
 
         ClearVotes ->
-            ( { model | shouldFlipCards = False }, sendToBackend <| ClearAllUserVotes (model.roomId |> Maybe.withDefault 1) )
+            ( { model | shouldFlipCards = False, card = Nothing }, sendToBackend <| ClearAllUserVotes (model.roomId |> Maybe.withDefault 1) )
 
         FinishVoting ->
             ( { model | shouldStartClock = False }, sendToBackend <| SignalShowCharts (model.roomId |> Maybe.withDefault 1) )
+
+        SkipStory ->
+            ( { model | shouldStartClock = False, clock = 0, card = Nothing, shouldFlipCards = False }, sendToBackend <| SignalSkipStory (model.roomId |> Maybe.withDefault 1) )
 
         NextStory ->
             let
                 updatedStories =
                     model.stories |> List.drop 1
             in
-            ( { model | stories = updatedStories }, Cmd.batch [ sendToBackend <| ClearAllUserVotes (model.roomId |> Maybe.withDefault 1), sendToBackend <| SignalUpdateStories updatedStories (model.roomId |> Maybe.withDefault 1) ] )
+            ( { model | stories = updatedStories, card = Nothing }, Cmd.batch [ sendToBackend <| ClearAllUserVotes (model.roomId |> Maybe.withDefault 1), sendToBackend <| SignalUpdateStories updatedStories (model.roomId |> Maybe.withDefault 1) ] )
 
 
 updateFromBackend : ToFrontend -> Model -> ( Model, Cmd FrontendMsg )
@@ -314,7 +317,10 @@ updateFromBackend msg model =
             ( { model | shouldFlipCards = not <| model.shouldFlipCards }, Cmd.none )
 
         UsersCardReset users ->
-            ( { model | users = users, shouldFlipCards = False }, Cmd.none )
+            ( { model | users = users, shouldFlipCards = False, card = Nothing }, Cmd.none )
+
+        SkipStoryAndExposeCharts users ->
+            ( { model | users = users, shouldFlipCards = False, card = Nothing, shouldShowCharts = True, shouldStartClock = False, clock = 0 }, Cmd.none )
 
         ExposeCharts ->
             ( { model | shouldShowCharts = not <| model.shouldShowCharts, shouldStartClock = False, clock = 0 }, Cmd.none )
@@ -405,6 +411,8 @@ view model =
                                         ]
                                     ]
                                     [ Html.h2 [ Attr.css [ Tw.mt_0, Tw.mb_4 ] ] [ text "Add your name" ] ]
+
+                                -- , svg [] [ PieChart.main ]
                                 , Html.div
                                     [ Attr.css
                                         [ Bp.sm
@@ -415,36 +423,10 @@ view model =
                                         ]
                                     ]
                                     [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0 ] ] [ text "[ You're about to become an admin ]" ]
-                                    , Html.input
-                                        [ Attr.type_ "text"
-                                        , Attr.css
-                                            [ Tw.block
-                                            , Tw.w_full
-                                            , Tw.form_input
-                                            , Tw.rounded_md
-                                            , Tw.border_0
-                                            , Tw.py_1_dot_5
-                                            , Tw.text_color Tw.gray_900
-                                            , Tw.shadow_sm
-                                            , Tw.ring_1
-                                            , Tw.ring_inset
-                                            , Tw.ring_color Tw.gray_300
-                                            , Css.focus
-                                                [ Tw.ring_2
-                                                , Tw.ring_inset
-                                                , Tw.ring_color Tw.teal_400
-                                                ]
-                                            , Bp.sm
-                                                [ Tw.text_lg
-                                                , Tw.leading_6
-                                                ]
-                                            ]
-                                        , onInput StoreName
-                                        , model.name
+                                    , viewInput StoreName
+                                        (model.name
                                             |> Maybe.withDefault ""
-                                            |> Attr.value
-                                        ]
-                                        []
+                                        )
                                     ]
                                 , Html.div
                                     [ Attr.css
@@ -496,36 +478,10 @@ view model =
                                     ]
                                     [ Html.p [ Attr.css [ Tw.mt_0, Tw.mb_4, Tw.text_2xl ] ] [ text "Add your name" ]
                                     , Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0 ] ] [ text "[ After that we will redirect you to team's room ]" ]
-                                    , Html.input
-                                        [ Attr.type_ "text"
-                                        , Attr.css
-                                            [ Tw.block
-                                            , Tw.w_full
-                                            , Tw.form_input
-                                            , Tw.rounded_md
-                                            , Tw.border_0
-                                            , Tw.py_1_dot_5
-                                            , Tw.text_color Tw.gray_900
-                                            , Tw.shadow_sm
-                                            , Tw.ring_1
-                                            , Tw.ring_inset
-                                            , Tw.ring_color Tw.gray_300
-                                            , Css.focus
-                                                [ Tw.ring_2
-                                                , Tw.ring_inset
-                                                , Tw.ring_color Tw.teal_400
-                                                ]
-                                            , Bp.sm
-                                                [ Tw.text_lg
-                                                , Tw.leading_6
-                                                ]
-                                            ]
-                                        , onInput StoreName
-                                        , model.name
+                                    , viewInput StoreName
+                                        (model.name
                                             |> Maybe.withDefault ""
-                                            |> Attr.value
-                                        ]
-                                        []
+                                        )
                                     ]
                                 , Html.div
                                     [ Attr.css
@@ -576,36 +532,10 @@ view model =
                                         ]
                                     ]
                                     [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0 ] ] [ text "[ Place where you can vote for stories ]" ]
-                                    , Html.input
-                                        [ Attr.type_ "text"
-                                        , Attr.css
-                                            [ Tw.block
-                                            , Tw.w_full
-                                            , Tw.form_input
-                                            , Tw.rounded_md
-                                            , Tw.border_0
-                                            , Tw.py_1_dot_5
-                                            , Tw.text_color Tw.gray_900
-                                            , Tw.shadow_sm
-                                            , Tw.ring_1
-                                            , Tw.ring_inset
-                                            , Tw.ring_color Tw.gray_300
-                                            , Css.focus
-                                                [ Tw.ring_2
-                                                , Tw.ring_inset
-                                                , Tw.ring_color Tw.teal_400
-                                                ]
-                                            , Bp.sm
-                                                [ Tw.text_lg
-                                                , Tw.leading_6
-                                                ]
-                                            ]
-                                        , onInput StoreRoom
-                                        , model.roomName
+                                    , viewInput StoreRoom
+                                        (model.roomName
                                             |> Maybe.withDefault ""
-                                            |> Attr.value
-                                        ]
-                                        []
+                                        )
                                     ]
                                 , Html.div
                                     [ Attr.css
@@ -674,36 +604,10 @@ view model =
                                                     )
                                             )
                                         ]
-                                    , Html.input
-                                        [ Attr.type_ "text"
-                                        , onInput StoreStory
-                                        , Attr.css
-                                            [ Tw.block
-                                            , Tw.w_full
-                                            , Tw.form_input
-                                            , Tw.rounded_md
-                                            , Tw.border_0
-                                            , Tw.py_1_dot_5
-                                            , Tw.text_color Tw.gray_900
-                                            , Tw.shadow_sm
-                                            , Tw.ring_1
-                                            , Tw.ring_inset
-                                            , Tw.ring_color Tw.gray_300
-                                            , Css.focus
-                                                [ Tw.ring_2
-                                                , Tw.ring_inset
-                                                , Tw.ring_color Tw.teal_400
-                                                ]
-                                            , Bp.sm
-                                                [ Tw.text_lg
-                                                , Tw.leading_6
-                                                ]
-                                            ]
-                                        , model.story
+                                    , viewInput StoreStory
+                                        (model.story
                                             |> Maybe.withDefault ""
-                                            |> Attr.value
-                                        ]
-                                        []
+                                        )
                                     ]
                                 , Html.div
                                     [ Attr.css
@@ -772,7 +676,7 @@ view model =
                                                                 [ viewButtonWithMsg ResetTime "Reset timer"
                                                                 , viewButtonWithMsg FlipCards "Flip cards"
                                                                 , viewButtonWithMsg ClearVotes "Clear votes"
-                                                                , viewButtonWithMsg NextStory "Skip story"
+                                                                , viewButtonWithMsg SkipStory "Skip story"
                                                                 , if model.users |> List.all (\user -> user.hasVoted) then
                                                                     viewButtonWithMsg FinishVoting "Finish Voting"
 
@@ -1086,40 +990,49 @@ viewCharts model =
                 if List.isEmpty model.stories then
                     Html.p [] [ text "No more stories to estimate ! You are done !" ]
 
-                else if model.shouldShowCharts then
-                    viewButtonWithMsg NextStory "Next Story"
-
                 else
                     text ""
 
             Employee ->
                 text ""
-        , Html.ul []
-            (model.users
-                |> List.sortBy
-                    (\user ->
-                        let
-                            crd =
-                                user.card |> Maybe.withDefault 0.5
-                        in
-                        crd
-                    )
-                |> toChartData 1
-                |> List.map
-                    (\entry ->
-                        Html.li []
-                            [ Html.div []
-                                [ Html.div []
-                                    [ Html.p [] [ entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text ]
-                                    , Html.p [] [ text <| (entry.percentage |> String.fromFloat) ++ "%" ]
-                                    , Html.p [] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " players)" ]
-                                    ]
+        , case model.card of
+            Just _ ->
+                Html.div []
+                    [ Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.flex_col, Tw.p_0, Tw.m_0, Tw.text_2xl, Tw.mb_10 ] ]
+                        (model.users
+                            |> List.sortBy
+                                (\user ->
+                                    let
+                                        crd =
+                                            user.card |> Maybe.withDefault 0.5
+                                    in
+                                    crd
+                                )
+                            |> toChartData 1
+                            |> List.map
+                                (\entry ->
+                                    Html.li []
+                                        [ Html.div []
+                                            [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4 ] ]
+                                                [ Html.span [] [ entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text ]
+                                                , Html.span [] [ text <| (entry.percentage |> String.fromFloat) ++ "%" ]
+                                                , Html.span [] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " players)" ]
+                                                ]
 
-                                --  TODO PIE CHART placeholder ! , Chart.pie [ ( 1, "Dsuan" ), ( 2, "Pera" ), ( 3, "Bojana" ), ( 1, "Vaja" ), ( 2, "Peka" ) ] |> Chart.toHtml
-                                ]
-                            ]
-                    )
-            )
+                                            --  TODO PIE CHART placeholder ! , Chart.pie [ ( 1, "Dsuan" ), ( 2, "Pera" ), ( 3, "Bojana" ), ( 1, "Vaja" ), ( 2, "Peka" ) ] |> Chart.toHtml
+                                            ]
+                                        ]
+                                )
+                        )
+                    ]
+
+            Nothing ->
+                Html.h4 [] [ text "This story was skipped" ]
+        , if model.shouldShowCharts then
+            viewButtonWithMsg NextStory "Next Story"
+
+          else
+            text ""
         ]
 
 
@@ -1142,6 +1055,42 @@ buttonStyle =
     ]
 
 
+inputStyle : List Css.Style
+inputStyle =
+    [ Tw.block
+    , Tw.w_full
+    , Tw.form_input
+    , Tw.rounded_md
+    , Tw.border_0
+    , Tw.py_1_dot_5
+    , Tw.text_color Tw.gray_900
+    , Tw.shadow_sm
+    , Tw.ring_1
+    , Tw.ring_inset
+    , Tw.ring_color Tw.gray_300
+    , Css.focus
+        [ Tw.ring_2
+        , Tw.ring_inset
+        , Tw.ring_color Tw.teal_400
+        ]
+    , Bp.sm
+        [ Tw.text_lg
+        , Tw.leading_6
+        ]
+    ]
+
+
 viewButtonWithMsg : FrontendMsg -> String -> Html FrontendMsg
 viewButtonWithMsg msg label =
     Html.button [ Attr.css buttonStyle, onClick msg ] [ text label ]
+
+
+viewInput : (String -> FrontendMsg) -> String -> Html FrontendMsg
+viewInput toMsg value =
+    Html.input
+        [ Attr.type_ "text"
+        , Attr.css inputStyle
+        , onInput toMsg
+        , Attr.value value
+        ]
+        []

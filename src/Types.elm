@@ -124,6 +124,7 @@ type FrontendMsg
     | ClearVotes
     | FinishVoting
     | NextStory
+    | SkipStory
 
 
 type ToBackend
@@ -138,6 +139,7 @@ type ToBackend
     | InitiateFlipCards Int
     | ClearAllUserVotes Int
     | SignalShowCharts Int
+    | SignalSkipStory Int
     | SignalUpdateStories (List ValidTextField) Int
 
 
@@ -157,5 +159,6 @@ type ToFrontend
     | UpdateCards (List User)
     | UsersFlipCards
     | UsersCardReset (List User)
+    | SkipStoryAndExposeCharts (List User)
     | ExposeCharts
     | UpdateStories (List ValidTextField) (List User)
