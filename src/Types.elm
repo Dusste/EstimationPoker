@@ -24,8 +24,10 @@ type alias FrontendModel =
     , clock : Int
     , shouldStartClock : Bool
     , shouldFlipCards : Bool
+    , chart : Chart
     , shouldShowCharts : Bool
     , card : Maybe String
+    , shouldStartChartAnimation : Bool
     }
 
 
@@ -79,6 +81,13 @@ type alias Room =
     }
 
 
+type alias ChartsData =
+    { uniqueVoteValue : Maybe Float
+    , percentage : Float
+    , numOfVoters : Float
+    }
+
+
 type alias User =
     { name : ValidTextField
     , isAdmin : Bool
@@ -125,6 +134,14 @@ type FrontendMsg
     | FinishVoting
     | NextStory
     | SkipStory
+    | StartChartAnimation
+    | ShowDonutChart
+    | ShowBarChart
+
+
+type Chart
+    = Donut
+    | Bar
 
 
 type ToBackend

@@ -4,15 +4,18 @@ import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav
 import Css
 import Css.Global
+import Dict exposing (Dict)
 import Html.Styled as Html exposing (Html, text)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events exposing (onClick, onInput)
 import Lamdera exposing (sendToBackend)
-import Svg.Styled exposing (path, svg)
+import Process
+import Svg.Styled exposing (circle, g, path, svg, tspan)
 import Svg.Styled.Attributes as SvgAttr
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Tw
 import Tailwind.Utilities as Tw
+import Task
 import Time
 import Types exposing (..)
 import Url exposing (Url)
@@ -74,9 +77,11 @@ initialModel url key =
     , users = []
     , clientId = Nothing
     , clock = 0
+    , chart = Bar
     , shouldStartClock = False
     , shouldFlipCards = False
     , shouldShowCharts = False
+    , shouldStartChartAnimation = False
     , card = Nothing
     }
 
@@ -251,7 +256,13 @@ update msg model =
             ( { model | shouldFlipCards = False, card = Nothing }, sendToBackend <| ClearAllUserVotes (model.roomId |> Maybe.withDefault 1) )
 
         FinishVoting ->
-            ( { model | shouldStartClock = False }, sendToBackend <| SignalShowCharts (model.roomId |> Maybe.withDefault 1) )
+            ( { model | shouldStartClock = False }
+            , Cmd.batch
+                [ sendToBackend <| SignalShowCharts (model.roomId |> Maybe.withDefault 1)
+                , Process.sleep 500
+                    |> Task.perform (\_ -> StartChartAnimation)
+                ]
+            )
 
         SkipStory ->
             ( { model | shouldStartClock = False, clock = 0, card = Nothing, shouldFlipCards = False }, sendToBackend <| SignalSkipStory (model.roomId |> Maybe.withDefault 1) )
@@ -261,7 +272,21 @@ update msg model =
                 updatedStories =
                     model.stories |> List.drop 1
             in
-            ( { model | stories = updatedStories, card = Nothing }, Cmd.batch [ sendToBackend <| ClearAllUserVotes (model.roomId |> Maybe.withDefault 1), sendToBackend <| SignalUpdateStories updatedStories (model.roomId |> Maybe.withDefault 1) ] )
+            ( { model | stories = updatedStories, card = Nothing, shouldStartChartAnimation = False }
+            , Cmd.batch
+                [ sendToBackend <| ClearAllUserVotes (model.roomId |> Maybe.withDefault 1)
+                , sendToBackend <| SignalUpdateStories updatedStories (model.roomId |> Maybe.withDefault 1)
+                ]
+            )
+
+        StartChartAnimation ->
+            ( { model | shouldStartChartAnimation = True }, Cmd.none )
+
+        ShowDonutChart ->
+            ( { model | chart = Donut }, Cmd.none )
+
+        ShowBarChart ->
+            ( { model | chart = Bar }, Cmd.none )
 
 
 updateFromBackend : ToFrontend -> Model -> ( Model, Cmd FrontendMsg )
@@ -643,19 +668,58 @@ view model =
                                         [ Tw.flex
                                         , Tw.flex_col
                                         , Tw.flex_1
+                                        , Tw.pr_4
                                         ]
                                     ]
                                     [ Html.div
                                         [ Attr.css
                                             [ Tw.text_color Tw.white
                                             , Tw.text_2xl
+                                            , Tw.flex
+                                            , Tw.flex_row
+                                            , Tw.justify_between
+                                            , Tw.items_center
                                             , Bp.sm
                                                 [ Tw.mx_auto
                                                 , Tw.w_full
                                                 ]
                                             ]
                                         ]
-                                        [ Html.h2 [ Attr.css [ Tw.mt_0, Tw.mb_4 ] ] [ model.roomName |> Maybe.withDefault "Room name is not available" |> text ] ]
+                                        [ Html.h2 [ Attr.css [ Tw.m_0 ] ] [ model.roomName |> Maybe.withDefault "Room name is not available" |> text ]
+                                        , if model.shouldShowCharts then
+                                            Html.div [ Attr.css [ Tw.flex, Tw.gap_2, Tw.text_xl ] ]
+                                                [ Html.span
+                                                    [ case model.chart of
+                                                        Bar ->
+                                                            Attr.css [ Tw.text_color Tw.gray_400 ]
+
+                                                        Donut ->
+                                                            Attr.css
+                                                                [ Tw.text_color Tw.white
+                                                                , Tw.cursor_pointer
+                                                                ]
+                                                    , onClick ShowBarChart
+                                                    ]
+                                                    [ text "Bar Chart" ]
+                                                , Html.span [] [ text " | " ]
+                                                , Html.span
+                                                    [ case model.chart of
+                                                        Donut ->
+                                                            Attr.css [ Tw.text_color Tw.gray_400 ]
+
+                                                        Bar ->
+                                                            Attr.css
+                                                                [ Tw.text_color Tw.white
+                                                                , Tw.cursor_pointer
+                                                                ]
+                                                    , onClick ShowDonutChart
+                                                    ]
+                                                    [ text "Donut Chart" ]
+                                                ]
+
+                                          else
+                                            text ""
+                                        ]
                                     , Html.h4 [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400 ] ] [ model.stories |> List.head |> Maybe.withDefault "There are no more stories" |> (++) "[ Current story ] " |> text ]
                                     , Html.div []
                                         [ Html.div []
@@ -708,7 +772,6 @@ view model =
                                 , Html.div
                                     [ Attr.css
                                         [ Tw.text_right
-                                        , Tw.mt_48
                                         , Tw.border_l
                                         , Tw.border_color Tw.teal_400
                                         , Tw.border_solid
@@ -716,58 +779,57 @@ view model =
                                         , Tw.border_b_0
                                         , Tw.border_t_0
                                         , Tw.pl_10
+                                        , Tw.flex
+                                        , Tw.items_center
                                         ]
                                     ]
-                                    [ Html.div [ Attr.css [ Tw.text_5xl ] ] [ text <| Util.fromIntToCounter model.clock ]
-                                    , Html.p [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400 ] ] [ text "[ Copy link and send to collegues ]" ]
-                                    , Html.div []
-                                        [ Html.input
-                                            [ Attr.readonly True
-                                            , Attr.css
-                                                [ Tw.block
-                                                , Tw.w_full
-                                                , Tw.border_color Tw.white
-                                                , Tw.rounded_md
-                                                , Tw.py_2
-                                                , Tw.pl_3
-                                                , Tw.pr_3
-                                                , Tw.text_color Tw.white
-                                                , Tw.shadow_sm
-                                                , Tw.bg_color Tw.black
-                                                , Tw.font_mono
-                                                , Tw.text_color Tw.teal_400
-                                                , Tw.text_right
-                                                , Css.focus
-                                                    [ Tw.outline_none
+                                    [ Html.div [ Attr.css [ Tw.flex, Tw.flex_col ] ]
+                                        [ Html.div [ Attr.css [ Tw.text_5xl ] ] [ text <| Util.fromIntToCounter model.clock ]
+                                        , Html.p [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400 ] ] [ text "[ Copy link and send to collegues ]" ]
+                                        , Html.div []
+                                            [ Html.input
+                                                [ Attr.readonly True
+                                                , Attr.css
+                                                    [ Tw.block
+                                                    , Tw.w_full
+                                                    , Tw.form_input
+                                                    , Tw.rounded_md
+                                                    , Tw.border_0
+                                                    , Tw.py_2
+                                                    , Tw.pl_3
+                                                    , Tw.pr_3
+                                                    , Tw.shadow_sm
+                                                    , Tw.ring_1
+                                                    , Tw.ring_inset
+                                                    , Tw.ring_color Tw.gray_300
+                                                    , Tw.bg_color Tw.slate_900
+                                                    , Tw.font_mono
+                                                    , Tw.text_color Tw.teal_400
+                                                    , Tw.text_right
+                                                    , Css.focus
+                                                        [ Tw.outline_0
+                                                        , Tw.ring_color Tw.gray_300
+                                                        ]
+                                                    , Bp.sm
+                                                        [ Tw.text_lg
+                                                        , Tw.leading_6
+                                                        ]
                                                     ]
-                                                , Bp.sm
-                                                    [ Tw.text_sm
-                                                    ]
+                                                , Attr.value <| model.url ++ "invite/" ++ (model.roomId |> Maybe.withDefault 1 |> String.fromInt)
                                                 ]
-                                            , Attr.value <| model.url ++ "invite/" ++ (model.roomId |> Maybe.withDefault 1 |> String.fromInt)
+                                                []
                                             ]
-                                            []
-                                        ]
-                                    , Html.div [ Attr.css [ Tw.mt_6 ] ]
-                                        [ Html.h4 [ Attr.css [ Tw.text_3xl, Tw.m_0, Tw.mb_4 ] ] [ text "Team:" ]
-                                        , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.flex_col, Tw.text_2xl, Tw.gap_4 ] ]
-                                            (model.users
-                                                |> List.map
-                                                    (\{ isAdmin, name, card, hasVoted } ->
-                                                        if isAdmin then
-                                                            Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.text_color Tw.blue_400 ] ]
-                                                                [ Html.div []
-                                                                    [ case model.credentials of
-                                                                        Admin ->
-                                                                            case card of
-                                                                                Just crd ->
-                                                                                    Html.span [ Attr.css [] ] [ crd |> String.fromFloat |> text ]
-
-                                                                                Nothing ->
-                                                                                    text ""
-
-                                                                        Employee ->
-                                                                            if model.shouldFlipCards then
+                                        , Html.div [ Attr.css [ Tw.mt_6 ] ]
+                                            [ Html.h4 [ Attr.css [ Tw.text_3xl, Tw.m_0, Tw.mb_4 ] ] [ text "Team:" ]
+                                            , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.flex_col, Tw.text_2xl, Tw.gap_4 ] ]
+                                                (model.users
+                                                    |> List.map
+                                                        (\{ isAdmin, name, card, hasVoted } ->
+                                                            if isAdmin then
+                                                                Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.text_color Tw.blue_400 ] ]
+                                                                    [ Html.div []
+                                                                        [ case model.credentials of
+                                                                            Admin ->
                                                                                 case card of
                                                                                     Just crd ->
                                                                                         Html.span [ Attr.css [] ] [ crd |> String.fromFloat |> text ]
@@ -775,52 +837,62 @@ view model =
                                                                                     Nothing ->
                                                                                         text ""
 
-                                                                            else
-                                                                                text ""
-                                                                    ]
-                                                                , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
-                                                                ]
+                                                                            Employee ->
+                                                                                if model.shouldFlipCards then
+                                                                                    case card of
+                                                                                        Just crd ->
+                                                                                            Html.span [ Attr.css [] ] [ crd |> String.fromFloat |> text ]
 
-                                                        else
-                                                            case model.credentials of
-                                                                Admin ->
-                                                                    Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4 ] ]
-                                                                        [ Html.div []
-                                                                            [ case card of
-                                                                                Just crd ->
-                                                                                    Html.span [ Attr.css [] ] [ crd |> String.fromFloat |> text ]
+                                                                                        Nothing ->
+                                                                                            text ""
 
-                                                                                Nothing ->
+                                                                                else
                                                                                     text ""
-                                                                            ]
-                                                                        , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
                                                                         ]
+                                                                    , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
+                                                                    ]
 
-                                                                Employee ->
-                                                                    Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4 ] ]
-                                                                        [ Html.div []
-                                                                            [ if hasVoted && not model.shouldFlipCards then
-                                                                                Html.span [ Attr.css [ Tw.m_0 ] ] [ 0xA936 |> Char.fromCode |> String.fromChar |> text ]
+                                                            else
+                                                                case model.credentials of
+                                                                    Admin ->
+                                                                        Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4 ] ]
+                                                                            [ Html.div []
+                                                                                [ case card of
+                                                                                    Just crd ->
+                                                                                        Html.span [ Attr.css [] ] [ crd |> String.fromFloat |> text ]
+
+                                                                                    Nothing ->
+                                                                                        text ""
+                                                                                ]
+                                                                            , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
+                                                                            ]
+
+                                                                    Employee ->
+                                                                        Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4 ] ]
+                                                                            [ Html.div []
+                                                                                [ if hasVoted && not model.shouldFlipCards then
+                                                                                    Html.span [ Attr.css [ Tw.m_0 ] ] [ 0xA936 |> Char.fromCode |> String.fromChar |> text ]
+
+                                                                                  else
+                                                                                    text ""
+                                                                                ]
+                                                                            , if model.shouldFlipCards then
+                                                                                case card of
+                                                                                    Just crd ->
+                                                                                        Html.p [ Attr.css [ Tw.m_0 ] ]
+                                                                                            [ Html.span [] [ crd |> String.fromFloat |> text ]
+                                                                                            ]
+
+                                                                                    Nothing ->
+                                                                                        text ""
 
                                                                               else
                                                                                 text ""
+                                                                            , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
                                                                             ]
-                                                                        , if model.shouldFlipCards then
-                                                                            case card of
-                                                                                Just crd ->
-                                                                                    Html.p [ Attr.css [ Tw.m_0 ] ]
-                                                                                        [ Html.span [] [ crd |> String.fromFloat |> text ]
-                                                                                        ]
-
-                                                                                Nothing ->
-                                                                                    text ""
-
-                                                                          else
-                                                                            text ""
-                                                                        , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
-                                                                        ]
-                                                    )
-                                            )
+                                                        )
+                                                )
+                                            ]
                                         ]
                                     ]
                                 ]
@@ -964,8 +1036,8 @@ viewCharts model =
         teamSize =
             model.users |> List.length |> toFloat
 
-        toChartData : Float -> List User -> List { uniqueVoteValue : Maybe Float, percentage : Float, numOfVoters : Float }
-        toChartData count lst =
+        toChartData : Float -> List User -> List ChartsData
+        toChartData increment lst =
             case lst of
                 [] ->
                     []
@@ -976,59 +1048,135 @@ viewCharts model =
                             xs |> List.map (\u -> u.card)
                     in
                     if List.isEmpty xs then
-                        { numOfVoters = count, percentage = count / teamSize * 100, uniqueVoteValue = x.card } :: toChartData 1 []
+                        { numOfVoters = increment, percentage = increment / teamSize * 100, uniqueVoteValue = x.card } :: toChartData 1 []
 
                     else if List.member x.card listOfLeftValues then
-                        [] ++ toChartData (count + 1) xs
+                        [] ++ toChartData (increment + 1) xs
 
                     else
-                        { uniqueVoteValue = x.card, percentage = count / teamSize * 100, numOfVoters = count } :: toChartData 1 xs
+                        { uniqueVoteValue = x.card, percentage = increment / teamSize * 100, numOfVoters = increment } :: toChartData 1 xs
+
+        viewDonutData : List User -> List (Html FrontendMsg)
+        viewDonutData users =
+            [ circle [ SvgAttr.class "donut-hole", SvgAttr.cx "20", SvgAttr.cy "20", SvgAttr.r "15.91549430918954" ] []
+            , circle [ SvgAttr.class "donut-ring", SvgAttr.cx "20", SvgAttr.cy "20", SvgAttr.r "15.91549430918954", SvgAttr.fill "transparent", SvgAttr.strokeWidth "3.5" ] []
+            ]
+                ++ (users
+                        |> List.sortBy
+                            (\user ->
+                                let
+                                    crd =
+                                        user.card |> Maybe.withDefault 0.5
+                                in
+                                crd
+                            )
+                        |> toChartData 1
+                        |> List.indexedMap
+                            (\int entry ->
+                                circle
+                                    [ SvgAttr.class <|
+                                        "donut-segment"
+                                    , SvgAttr.stroke (getHexColor int)
+                                    , SvgAttr.cx "20"
+                                    , SvgAttr.cy "20"
+                                    , SvgAttr.r "15.91549430918954"
+                                    , SvgAttr.fill "transparent"
+                                    , SvgAttr.strokeWidth "3.5"
+                                    , SvgAttr.strokeDasharray <| (entry.percentage |> String.fromFloat) ++ " 0"
+                                    , SvgAttr.strokeDashoffset "25"
+                                    ]
+                                    []
+                            )
+                   )
     in
     Html.div []
-        [ case model.credentials of
-            Admin ->
-                if List.isEmpty model.stories then
-                    Html.p [] [ text "No more stories to estimate ! You are done !" ]
-
-                else
-                    text ""
-
-            Employee ->
-                text ""
-        , case model.card of
+        [ case model.card of
             Just _ ->
-                Html.div []
-                    [ Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.flex_col, Tw.p_0, Tw.m_0, Tw.text_2xl, Tw.mb_10 ] ]
-                        (model.users
-                            |> List.sortBy
-                                (\user ->
-                                    let
-                                        crd =
-                                            user.card |> Maybe.withDefault 0.5
-                                    in
-                                    crd
-                                )
-                            |> toChartData 1
-                            |> List.map
-                                (\entry ->
-                                    Html.li []
-                                        [ Html.div []
-                                            [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4 ] ]
-                                                [ Html.span [] [ entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text ]
-                                                , Html.span [] [ text <| (entry.percentage |> String.fromFloat) ++ "%" ]
-                                                , Html.span [] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " players)" ]
-                                                ]
+                case model.chart of
+                    Bar ->
+                        Html.div []
+                            [ Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.flex_col, Tw.p_0, Tw.m_0, Tw.text_2xl, Tw.mb_10, Tw.gap_4 ] ]
+                                (model.users
+                                    |> List.sortBy
+                                        (\user ->
+                                            let
+                                                crd =
+                                                    user.card |> Maybe.withDefault 0.5
+                                            in
+                                            crd
+                                        )
+                                    |> toChartData 1
+                                    |> List.indexedMap
+                                        (\int entry ->
+                                            Html.li []
+                                                [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4, Tw.justify_end ] ]
+                                                    [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4 ] ]
+                                                        [ Html.span [ Attr.css [ Css.width (Css.px 31), Css.height (Css.px 31), Tw.bg_color (getColor int) ] ] []
+                                                        , Html.span [ Attr.css [ Css.minWidth (Css.px 40) ] ] [ entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text ]
+                                                        , Html.span [ Attr.css [ Css.minWidth (Css.px 57) ] ] [ text <| (entry.percentage |> String.fromFloat) ++ "%" ]
+                                                        , Html.span [ Attr.css [ Css.minWidth (Css.px 123) ] ] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " " ++ pluralification entry.numOfVoters "player" ++ ")" ]
+                                                        ]
+                                                    , Html.div [ Attr.css [ Tw.w_96, Tw.bg_color Tw.slate_900, Tw.h_8 ] ]
+                                                        [ Html.div
+                                                            [ if model.shouldStartChartAnimation then
+                                                                Attr.class "transition-width"
 
-                                            --  TODO PIE CHART placeholder ! , Chart.pie [ ( 1, "Dsuan" ), ( 2, "Pera" ), ( 3, "Bojana" ), ( 1, "Vaja" ), ( 2, "Peka" ) ] |> Chart.toHtml
-                                            ]
-                                        ]
+                                                              else
+                                                                Attr.css []
+                                                            , Attr.css
+                                                                [ Tw.h_full
+                                                                , Tw.bg_color (getColor int)
+                                                                , if model.shouldStartChartAnimation then
+                                                                    Css.width (Css.pct entry.percentage)
+
+                                                                  else
+                                                                    Css.width (Css.px 0)
+                                                                ]
+                                                            ]
+                                                            []
+                                                        ]
+                                                    ]
+                                                ]
+                                        )
                                 )
-                        )
-                    ]
+                            ]
+
+                    Donut ->
+                        Html.div [ Attr.css [ Tw.flex, Tw.flex_1 ] ]
+                            [ Html.div []
+                                [ Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.flex_col, Tw.p_0, Tw.m_0, Tw.text_2xl, Tw.mb_10, Tw.gap_4 ] ]
+                                    (model.users
+                                        |> List.sortBy
+                                            (\user ->
+                                                let
+                                                    crd =
+                                                        user.card |> Maybe.withDefault 0.5
+                                                in
+                                                crd
+                                            )
+                                        |> toChartData 1
+                                        |> List.indexedMap
+                                            (\int entry ->
+                                                Html.li []
+                                                    [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4, Tw.justify_end ] ]
+                                                        [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4 ] ]
+                                                            [ Html.span [ Attr.css [ Css.width (Css.px 31), Css.height (Css.px 31), Tw.bg_color (getColor int) ] ] []
+                                                            , Html.span [ Attr.css [ Css.minWidth (Css.px 40) ] ] [ entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text ]
+                                                            , Html.span [ Attr.css [ Css.minWidth (Css.px 57) ] ] [ text <| (entry.percentage |> String.fromFloat) ++ "%" ]
+                                                            , Html.span [ Attr.css [ Css.minWidth (Css.px 123) ] ] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " " ++ pluralification entry.numOfVoters "player" ++ ")" ]
+                                                            ]
+                                                        ]
+                                                    ]
+                                            )
+                                    )
+                                ]
+                            , svg [ SvgAttr.viewBox "0 0 40 40", SvgAttr.class "donut" ]
+                                (viewDonutData model.users)
+                            ]
 
             Nothing ->
                 Html.h4 [] [ text "This story was skipped" ]
-        , if model.shouldShowCharts then
+        , if model.shouldShowCharts && List.length model.stories > 1 then
             viewButtonWithMsg NextStory "Next Story"
 
           else
@@ -1053,6 +1201,15 @@ buttonStyle =
         , Tw.border_color Tw.transparent
         ]
     ]
+
+
+pluralification : Float -> String -> String
+pluralification count initial =
+    if count == 1 then
+        initial
+
+    else
+        initial ++ "s"
 
 
 inputStyle : List Css.Style
@@ -1094,3 +1251,78 @@ viewInput toMsg value =
         , Attr.value value
         ]
         []
+
+
+colorConfig : Dict Int Tw.Color
+colorConfig =
+    Dict.fromList
+        [ ( 0, Tw.pink_400 )
+        , ( 1, Tw.sky_400 )
+        , ( 2, Tw.lime_400 )
+        , ( 3, Tw.purple_900 )
+        , ( 4, Tw.sky_700 )
+        , ( 5, Tw.lime_500 )
+        , ( 9, Tw.pink_700 )
+        , ( 8, Tw.teal_700 )
+        , ( 11, Tw.lime_900 )
+        , ( 10, Tw.teal_800 )
+        , ( 15, Tw.pink_200 )
+        , ( 7, Tw.lime_300 )
+        , ( 6, Tw.teal_500 )
+        , ( 12, Tw.sky_600 )
+        , ( 14, Tw.lime_700 )
+        , ( 13, Tw.teal_900 )
+        , ( 16, Tw.lime_600 )
+        , ( 17, Tw.pink_300 )
+        , ( 18, Tw.sky_500 )
+        , ( 19, Tw.teal_200 )
+        , ( 20, Tw.pink_500 )
+        , ( 21, Tw.teal_300 )
+        , ( 22, Tw.lime_200 )
+        , ( 23, Tw.sky_900 )
+        , ( 24, Tw.pink_600 )
+        , ( 25, Tw.teal_600 )
+        , ( 26, Tw.sky_800 )
+        , ( 27, Tw.pink_900 )
+        , ( 28, Tw.sky_200 )
+        , ( 29, Tw.lime_800 )
+        , ( 30, Tw.pink_800 )
+        , ( 31, Tw.sky_300 )
+        ]
+
+
+getColor : Int -> Tw.Color
+getColor target =
+    colorConfig
+        |> Dict.get target
+        |> Maybe.withDefault Tw.teal_400
+
+
+getHexColor : Int -> String
+getHexColor target =
+    colorConfig
+        |> Dict.get target
+        |> fromTWcolorToHex
+        |> Maybe.withDefault "#2dd4bf"
+
+
+fromTWcolorToHex : Maybe Tw.Color -> Maybe String
+fromTWcolorToHex twCol =
+    twCol
+        |> Maybe.andThen
+            (\color ->
+                if color == Tw.pink_400 then
+                    Just "#f472b6"
+
+                else if color == Tw.sky_400 then
+                    Just "#38bdf8"
+
+                else if color == Tw.lime_400 then
+                    Just "#a3e635"
+
+                else if color == Tw.purple_900 then
+                    Just "#581c87"
+
+                else
+                    Nothing
+            )
