@@ -280,7 +280,7 @@ update msg model =
             )
 
         StartChartAnimation ->
-            ( { model | shouldStartChartAnimation = True }, Cmd.none )
+            ( { model | shouldStartChartAnimation = True }, sendToBackend <| SignalChartAnimation (model.roomId |> Maybe.withDefault 1) )
 
         ShowDonutChart ->
             ( { model | chart = Donut }, Cmd.none )
@@ -352,6 +352,8 @@ updateFromBackend msg model =
 
         UpdateStories updatedStories resetUsers ->
             ( { model | stories = updatedStories, shouldShowCharts = not <| model.shouldShowCharts, users = resetUsers }, Cmd.none )
+        ChartAnimation ->
+            ({ model | shouldStartChartAnimation = True  }, Cmd.none)
 
 
 view : Model -> Browser.Document FrontendMsg

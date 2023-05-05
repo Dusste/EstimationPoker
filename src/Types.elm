@@ -158,6 +158,7 @@ type ToBackend
     | SignalShowCharts Int
     | SignalSkipStory Int
     | SignalUpdateStories (List ValidTextField) Int
+    | SignalChartAnimation Int
 
 
 type BackendMsg
@@ -179,3 +180,4 @@ type ToFrontend
     | SkipStoryAndExposeCharts (List User)
     | ExposeCharts
     | UpdateStories (List ValidTextField) (List User)
+    | ChartAnimation

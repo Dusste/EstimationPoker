@@ -343,6 +343,24 @@ updateFromFrontend sessionId clientId msg model =
             in
             ( model, notifyCertainUsersAboutSomething users ExposeCharts sendToFrontend |> Cmd.batch )
 
+        SignalChartAnimation roomId ->
+            let
+                { users } =
+                    model.rooms
+                        |> Dict.get roomId
+                        |> Maybe.withDefault defaultRoom
+
+                notifyCertainUsersAboutSomething : List User -> toFrontend -> (ClientId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
+                notifyCertainUsersAboutSomething usrs msgToFe f =
+                    case usrs of
+                        [] ->
+                            []
+
+                        x :: xs ->
+                            (f x.clientId <| msgToFe) :: notifyCertainUsersAboutSomething xs msgToFe f
+            in
+            ( model, notifyCertainUsersAboutSomething users ChartAnimation sendToFrontend |> Cmd.batch )
+
         SignalUpdateStories updatedStories roomId ->
             let
                 updateRecord =
