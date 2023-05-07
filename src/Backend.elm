@@ -395,5 +395,6 @@ subscriptions : BackendModel -> Sub BackendMsg
 subscriptions _ =
     Sub.batch
         [ onConnect UserConnected
-        , onDisconnect UserDisconnected
+
+        -- , onDisconnect UserDisconnected
         ]

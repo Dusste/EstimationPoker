@@ -37,11 +37,6 @@ button {
     transform-origin: center;
 }
 
-.donut-segment-2 {
-    stroke: aqua;
-    animation: donut1 3s;
-}
-
 .donut-ring {
     stroke: #EBEBEB;
 }

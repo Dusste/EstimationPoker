@@ -4,7 +4,7 @@ import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav
 import Css
 import Css.Global
-import Dict exposing (Dict)
+import Donut
 import Html.Styled as Html exposing (Html, text)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events exposing (onClick, onInput)
@@ -200,10 +200,10 @@ update msg model =
 
                 Ok validInput ->
                     let
+                        -- TODO think about something smarter
                         roomId =
                             model.roomId |> Maybe.withDefault 1
 
-                        -- TODO think about something smarter
                         updatedStories =
                             model.stories ++ [ validInput ]
                     in
@@ -351,9 +351,10 @@ updateFromBackend msg model =
             ( { model | shouldShowCharts = not <| model.shouldShowCharts, shouldStartClock = False, clock = 0 }, Cmd.none )
 
         UpdateStories updatedStories resetUsers ->
-            ( { model | stories = updatedStories, shouldShowCharts = not <| model.shouldShowCharts, users = resetUsers }, Cmd.none )
+            ( { model | stories = updatedStories, shouldShowCharts = not <| model.shouldShowCharts, users = resetUsers, shouldStartChartAnimation = False }, Cmd.none )
+
         ChartAnimation ->
-            ({ model | shouldStartChartAnimation = True  }, Cmd.none)
+            ( { model | shouldStartChartAnimation = True }, Cmd.none )
 
 
 view : Model -> Browser.Document FrontendMsg
@@ -1037,59 +1038,6 @@ viewCharts model =
     let
         teamSize =
             model.users |> List.length |> toFloat
-
-        toChartData : Float -> List User -> List ChartsData
-        toChartData increment lst =
-            case lst of
-                [] ->
-                    []
-
-                x :: xs ->
-                    let
-                        listOfLeftValues =
-                            xs |> List.map (\u -> u.card)
-                    in
-                    if List.isEmpty xs then
-                        { numOfVoters = increment, percentage = increment / teamSize * 100, uniqueVoteValue = x.card } :: toChartData 1 []
-
-                    else if List.member x.card listOfLeftValues then
-                        [] ++ toChartData (increment + 1) xs
-
-                    else
-                        { uniqueVoteValue = x.card, percentage = increment / teamSize * 100, numOfVoters = increment } :: toChartData 1 xs
-
-        viewDonutData : List User -> List (Html FrontendMsg)
-        viewDonutData users =
-            [ circle [ SvgAttr.class "donut-hole", SvgAttr.cx "20", SvgAttr.cy "20", SvgAttr.r "15.91549430918954" ] []
-            , circle [ SvgAttr.class "donut-ring", SvgAttr.cx "20", SvgAttr.cy "20", SvgAttr.r "15.91549430918954", SvgAttr.fill "transparent", SvgAttr.strokeWidth "3.5" ] []
-            ]
-                ++ (users
-                        |> List.sortBy
-                            (\user ->
-                                let
-                                    crd =
-                                        user.card |> Maybe.withDefault 0.5
-                                in
-                                crd
-                            )
-                        |> toChartData 1
-                        |> List.indexedMap
-                            (\int entry ->
-                                circle
-                                    [ SvgAttr.class <|
-                                        "donut-segment"
-                                    , SvgAttr.stroke (getHexColor int)
-                                    , SvgAttr.cx "20"
-                                    , SvgAttr.cy "20"
-                                    , SvgAttr.r "15.91549430918954"
-                                    , SvgAttr.fill "transparent"
-                                    , SvgAttr.strokeWidth "3.5"
-                                    , SvgAttr.strokeDasharray <| (entry.percentage |> String.fromFloat) ++ " 0"
-                                    , SvgAttr.strokeDashoffset "25"
-                                    ]
-                                    []
-                            )
-                   )
     in
     Html.div []
         [ case model.card of
@@ -1107,13 +1055,13 @@ viewCharts model =
                                             in
                                             crd
                                         )
-                                    |> toChartData 1
+                                    |> Util.toChartData 1 teamSize
                                     |> List.indexedMap
                                         (\int entry ->
                                             Html.li []
                                                 [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4, Tw.justify_end ] ]
                                                     [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4 ] ]
-                                                        [ Html.span [ Attr.css [ Css.width (Css.px 31), Css.height (Css.px 31), Tw.bg_color (getColor int) ] ] []
+                                                        [ Html.span [ Attr.css [ Css.width (Css.px 31), Css.height (Css.px 31), Tw.bg_color (Util.getColor int) ] ] []
                                                         , Html.span [ Attr.css [ Css.minWidth (Css.px 40) ] ] [ entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text ]
                                                         , Html.span [ Attr.css [ Css.minWidth (Css.px 57) ] ] [ text <| (entry.percentage |> String.fromFloat) ++ "%" ]
                                                         , Html.span [ Attr.css [ Css.minWidth (Css.px 123) ] ] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " " ++ pluralification entry.numOfVoters "player" ++ ")" ]
@@ -1127,7 +1075,7 @@ viewCharts model =
                                                                 Attr.css []
                                                             , Attr.css
                                                                 [ Tw.h_full
-                                                                , Tw.bg_color (getColor int)
+                                                                , Tw.bg_color (Util.getColor int)
                                                                 , if model.shouldStartChartAnimation then
                                                                     Css.width (Css.pct entry.percentage)
 
@@ -1144,6 +1092,10 @@ viewCharts model =
                             ]
 
                     Donut ->
+                        let
+                            donutModel =
+                                Donut.init model.users
+                        in
                         Html.div [ Attr.css [ Tw.flex, Tw.flex_1 ] ]
                             [ Html.div []
                                 [ Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.flex_col, Tw.p_0, Tw.m_0, Tw.text_2xl, Tw.mb_10, Tw.gap_4 ] ]
@@ -1156,13 +1108,13 @@ viewCharts model =
                                                 in
                                                 crd
                                             )
-                                        |> toChartData 1
+                                        |> Util.toChartData 1 teamSize
                                         |> List.indexedMap
                                             (\int entry ->
                                                 Html.li []
                                                     [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4, Tw.justify_end ] ]
                                                         [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4 ] ]
-                                                            [ Html.span [ Attr.css [ Css.width (Css.px 31), Css.height (Css.px 31), Tw.bg_color (getColor int) ] ] []
+                                                            [ Html.span [ Attr.css [ Css.width (Css.px 31), Css.height (Css.px 31), Tw.bg_color (Util.getColor int) ] ] []
                                                             , Html.span [ Attr.css [ Css.minWidth (Css.px 40) ] ] [ entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text ]
                                                             , Html.span [ Attr.css [ Css.minWidth (Css.px 57) ] ] [ text <| (entry.percentage |> String.fromFloat) ++ "%" ]
                                                             , Html.span [ Attr.css [ Css.minWidth (Css.px 123) ] ] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " " ++ pluralification entry.numOfVoters "player" ++ ")" ]
@@ -1172,13 +1124,12 @@ viewCharts model =
                                             )
                                     )
                                 ]
-                            , svg [ SvgAttr.viewBox "0 0 40 40", SvgAttr.class "donut" ]
-                                (viewDonutData model.users)
+                            , Donut.view donutModel
                             ]
 
             Nothing ->
                 Html.h4 [] [ text "This story was skipped" ]
-        , if model.shouldShowCharts && List.length model.stories > 1 then
+        , if model.shouldShowCharts && List.length model.stories > 1 && model.credentials == Admin then
             viewButtonWithMsg NextStory "Next Story"
 
           else
@@ -1253,78 +1204,3 @@ viewInput toMsg value =
         , Attr.value value
         ]
         []
-
-
-colorConfig : Dict Int Tw.Color
-colorConfig =
-    Dict.fromList
-        [ ( 0, Tw.pink_400 )
-        , ( 1, Tw.sky_400 )
-        , ( 2, Tw.lime_400 )
-        , ( 3, Tw.purple_900 )
-        , ( 4, Tw.sky_700 )
-        , ( 5, Tw.lime_500 )
-        , ( 9, Tw.pink_700 )
-        , ( 8, Tw.teal_700 )
-        , ( 11, Tw.lime_900 )
-        , ( 10, Tw.teal_800 )
-        , ( 15, Tw.pink_200 )
-        , ( 7, Tw.lime_300 )
-        , ( 6, Tw.teal_500 )
-        , ( 12, Tw.sky_600 )
-        , ( 14, Tw.lime_700 )
-        , ( 13, Tw.teal_900 )
-        , ( 16, Tw.lime_600 )
-        , ( 17, Tw.pink_300 )
-        , ( 18, Tw.sky_500 )
-        , ( 19, Tw.teal_200 )
-        , ( 20, Tw.pink_500 )
-        , ( 21, Tw.teal_300 )
-        , ( 22, Tw.lime_200 )
-        , ( 23, Tw.sky_900 )
-        , ( 24, Tw.pink_600 )
-        , ( 25, Tw.teal_600 )
-        , ( 26, Tw.sky_800 )
-        , ( 27, Tw.pink_900 )
-        , ( 28, Tw.sky_200 )
-        , ( 29, Tw.lime_800 )
-        , ( 30, Tw.pink_800 )
-        , ( 31, Tw.sky_300 )
-        ]
-
-
-getColor : Int -> Tw.Color
-getColor target =
-    colorConfig
-        |> Dict.get target
-        |> Maybe.withDefault Tw.teal_400
-
-
-getHexColor : Int -> String
-getHexColor target =
-    colorConfig
-        |> Dict.get target
-        |> fromTWcolorToHex
-        |> Maybe.withDefault "#2dd4bf"
-
-
-fromTWcolorToHex : Maybe Tw.Color -> Maybe String
-fromTWcolorToHex twCol =
-    twCol
-        |> Maybe.andThen
-            (\color ->
-                if color == Tw.pink_400 then
-                    Just "#f472b6"
-
-                else if color == Tw.sky_400 then
-                    Just "#38bdf8"
-
-                else if color == Tw.lime_400 then
-                    Just "#a3e635"
-
-                else if color == Tw.purple_900 then
-                    Just "#581c87"
-
-                else
-                    Nothing
-            )

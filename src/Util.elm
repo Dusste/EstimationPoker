@@ -1,5 +1,7 @@
 module Util exposing (..)
 
+import Dict exposing (Dict)
+import Tailwind.Theme as Tw
 import Types exposing (..)
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>), Parser)
@@ -70,3 +72,183 @@ getBaseUrl u =
                 ++ ":"
                 ++ (p |> String.fromInt)
                 ++ "/"
+
+
+toChartData : Float -> Float -> List User -> List ChartsData
+toChartData increment teamSize lst =
+    case lst of
+        [] ->
+            []
+
+        x :: xs ->
+            let
+                listOfLeftValues =
+                    xs |> List.map (\u -> u.card)
+            in
+            if List.isEmpty xs then
+                { numOfVoters = increment, percentage = increment / teamSize * 100, uniqueVoteValue = x.card } :: toChartData 1 teamSize []
+
+            else if List.member x.card listOfLeftValues then
+                [] ++ toChartData (increment + 1) teamSize xs
+
+            else
+                { uniqueVoteValue = x.card, percentage = increment / teamSize * 100, numOfVoters = increment } :: toChartData 1 teamSize xs
+
+
+getColor : Int -> Tw.Color
+getColor target =
+    colorConfig
+        |> Dict.get target
+        |> Maybe.withDefault Tw.teal_400
+
+
+getHexColor : Int -> String
+getHexColor target =
+    colorConfig
+        |> Dict.get target
+        |> fromTWcolorToHex
+        |> Maybe.withDefault "#2dd4bf"
+
+
+fromTWcolorToHex : Maybe Tw.Color -> Maybe String
+fromTWcolorToHex twCol =
+    twCol
+        |> Maybe.andThen
+            (\color ->
+                if color == Tw.pink_400 then
+                    Just "#f472b6"
+
+                else if color == Tw.sky_400 then
+                    Just "#38bdf8"
+
+                else if color == Tw.lime_400 then
+                    Just "#a3e635"
+
+                else if color == Tw.purple_900 then
+                    Just "#581c87"
+
+                else if color == Tw.sky_700 then
+                    Just "#0369a1"
+
+                else if color == Tw.lime_500 then
+                    Just "#84cc16"
+
+                else if color == Tw.pink_700 then
+                    Just "#be185d"
+
+                else if color == Tw.teal_700 then
+                    Just "#0f766e"
+
+                else if color == Tw.lime_900 then
+                    Just "#365314"
+
+                else if color == Tw.teal_800 then
+                    Just "#115e59"
+
+                else if color == Tw.pink_200 then
+                    Just "#fbcfe8"
+
+                else if color == Tw.lime_300 then
+                    Just "#bef264"
+
+                else if color == Tw.teal_500 then
+                    Just "#14b8a6"
+
+                else if color == Tw.sky_600 then
+                    Just "#0284c7"
+
+                else if color == Tw.lime_700 then
+                    Just "#4d7c0f"
+
+                else if color == Tw.teal_900 then
+                    Just "#134e4a"
+
+                else if color == Tw.lime_600 then
+                    Just "#65a30d"
+
+                else if color == Tw.pink_300 then
+                    Just "#f9a8d4"
+
+                else if color == Tw.sky_500 then
+                    Just "#0ea5e9"
+
+                else if color == Tw.teal_200 then
+                    Just "#99f6e4"
+
+                else if color == Tw.pink_500 then
+                    Just "#ec4899"
+
+                else if color == Tw.teal_300 then
+                    Just "#5eead4"
+
+                else if color == Tw.lime_200 then
+                    Just "#d9f99d"
+
+                else if color == Tw.sky_900 then
+                    Just "#0c4a6e"
+
+                else if color == Tw.pink_600 then
+                    Just "#db2777"
+
+                else if color == Tw.teal_600 then
+                    Just "#0d9488"
+
+                else if color == Tw.sky_800 then
+                    Just "#075985"
+
+                else if color == Tw.pink_900 then
+                    Just "#831843"
+
+                else if color == Tw.sky_200 then
+                    Just "#bae6fd"
+
+                else if color == Tw.lime_800 then
+                    Just "#3f6212"
+
+                else if color == Tw.pink_800 then
+                    Just "#9d174d"
+
+                else if color == Tw.sky_300 then
+                    Just "#7dd3fc"
+
+                else
+                    Nothing
+            )
+
+
+colorConfig : Dict Int Tw.Color
+colorConfig =
+    Dict.fromList
+        [ ( 0, Tw.pink_400 )
+        , ( 1, Tw.sky_400 )
+        , ( 2, Tw.lime_400 )
+        , ( 3, Tw.purple_900 )
+        , ( 4, Tw.sky_700 )
+        , ( 5, Tw.lime_500 )
+        , ( 9, Tw.pink_700 )
+        , ( 8, Tw.teal_700 )
+        , ( 11, Tw.lime_900 )
+        , ( 10, Tw.teal_800 )
+        , ( 15, Tw.pink_200 )
+        , ( 7, Tw.lime_300 )
+        , ( 6, Tw.teal_500 )
+        , ( 12, Tw.sky_600 )
+        , ( 14, Tw.lime_700 )
+        , ( 13, Tw.teal_900 )
+        , ( 16, Tw.lime_600 )
+        , ( 17, Tw.pink_300 )
+        , ( 18, Tw.sky_500 )
+        , ( 19, Tw.teal_200 )
+        , ( 20, Tw.pink_500 )
+        , ( 21, Tw.teal_300 )
+        , ( 22, Tw.lime_200 )
+        , ( 23, Tw.sky_900 )
+        , ( 24, Tw.pink_600 )
+        , ( 25, Tw.teal_600 )
+        , ( 26, Tw.sky_800 )
+        , ( 27, Tw.pink_900 )
+        , ( 28, Tw.sky_200 )
+        , ( 29, Tw.lime_800 )
+        , ( 30, Tw.pink_800 )
+        , ( 31, Tw.sky_300 )
+        ]
