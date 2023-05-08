@@ -1,5 +1,6 @@
 module Util exposing (..)
 
+import Array
 import Dict exposing (Dict)
 import Tailwind.Theme as Tw
 import Types exposing (..)
@@ -269,3 +270,25 @@ cards =
     , { name = "?", value = 0 }
     , { name = 0x2615 |> Char.fromCode |> String.fromChar, value = 0 }
     ]
+
+
+roundFloat : Float -> Int -> String
+roundFloat flt roundToNumberOfPlaces =
+    let
+        splitedString : List String
+        splitedString =
+            flt |> String.fromFloat |> String.split "."
+    in
+    case splitedString of
+        [] ->
+            flt |> String.fromFloat
+
+        [ _ ] ->
+            flt |> String.fromFloat
+
+        firstPart :: secondPart :: _ ->
+            let
+                slicedSecondPart =
+                    secondPart |> String.slice 0 roundToNumberOfPlaces
+            in
+            [ firstPart, slicedSecondPart ] |> String.join "."

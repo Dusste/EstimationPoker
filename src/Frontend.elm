@@ -375,10 +375,10 @@ view model =
                             , Tw.ease_in
                             , case model.error of
                                 Just _ ->
-                                    Tw.opacity_100
+                                    Tw.flex
 
                                 Nothing ->
-                                    Tw.opacity_0
+                                    Tw.hidden
                             , Tw.mb_4
                             , Tw.text_lg
                             , Tw.justify_center
@@ -640,14 +640,12 @@ view model =
                                 , Html.div
                                     [ Attr.css
                                         [ Tw.mt_5
-                                        , Bp.sm
-                                            [ Tw.mx_auto
-                                            , Tw.w_full
-                                            , Tw.max_w_sm
-                                            , Tw.flex
-                                            , Tw.gap_6
-                                            , Tw.justify_center
-                                            ]
+                                        , Tw.mx_auto
+                                        , Tw.w_full
+                                        , Tw.max_w_sm
+                                        , Tw.flex
+                                        , Tw.gap_6
+                                        , Tw.justify_center
                                         ]
                                     ]
                                     [ viewButtonWithMsg SendStory "Add New"
@@ -660,10 +658,13 @@ view model =
                                 [ Attr.css
                                     [ Tw.px_6
                                     , Tw.flex
-                                    , Tw.flex_row
+                                    , Tw.flex_col
                                     , Tw.text_color Tw.white
                                     , Tw.max_w_7xl
                                     , Tw.m_auto
+                                    , Bp.lg
+                                        [ Tw.flex_row
+                                        ]
                                     ]
                                 ]
                                 [ Html.div
@@ -671,8 +672,10 @@ view model =
                                         [ Tw.flex
                                         , Tw.flex_col
                                         , Tw.flex_1
-                                        , Tw.pr_4
                                         , Tw.py_6
+                                        , Bp.lg
+                                            [ Tw.pr_4
+                                            ]
                                         ]
                                     ]
                                     [ Html.div
@@ -682,9 +685,10 @@ view model =
                                             , Tw.flex
                                             , Tw.flex_row
                                             , Tw.justify_between
-                                            , Tw.items_center
+                                            , Tw.flex_col
+                                            , Tw.gap_6
                                             , Bp.sm
-                                                [ Tw.gap_10 ]
+                                                [ Tw.gap_10, Tw.items_center, Tw.flex_row ]
                                             ]
                                         ]
                                         [ Html.h2 [ Attr.css [ Tw.m_0 ] ] [ model.roomName |> Maybe.withDefault "Room name is not available" |> text ]
@@ -735,10 +739,26 @@ view model =
                                     , Html.div [ Attr.css [ Tw.mt_10 ] ]
                                         [ case model.credentials of
                                             Admin ->
-                                                Html.div []
+                                                Html.div
+                                                    [ Attr.css
+                                                        [ Tw.flex
+                                                        , Tw.gap_4
+                                                        , Tw.flex_wrap
+                                                        , Tw.justify_center
+                                                        , Bp.lg [ Tw.justify_start ]
+                                                        ]
+                                                    ]
                                                     [ if not <| model.shouldShowCharts && List.length model.stories > 0 then
                                                         if model.shouldStartClock then
-                                                            Html.div [ Attr.css [ Tw.flex, Tw.gap_4 ] ]
+                                                            Html.div
+                                                                [ Attr.css
+                                                                    [ Tw.flex
+                                                                    , Tw.gap_4
+                                                                    , Tw.flex_wrap
+                                                                    , Tw.justify_center
+                                                                    , Bp.lg [ Tw.justify_start ]
+                                                                    ]
+                                                                ]
                                                                 [ viewButtonWithMsg ResetTime "Reset timer"
                                                                 , viewButtonWithMsg FlipCards "Flip cards"
                                                                 , viewButtonWithMsg ClearVotes "Clear votes"
@@ -773,17 +793,19 @@ view model =
                                     ]
                                 , Html.div
                                     [ Attr.css
-                                        [ Tw.text_right
-                                        , Tw.border_l
-                                        , Tw.border_color Tw.gray_600
-                                        , Tw.border_solid
-                                        , Tw.border_r_0
-                                        , Tw.border_b_0
-                                        , Tw.border_t_0
-                                        , Tw.pl_10
-                                        , Tw.flex
+                                        [ Tw.flex
                                         , Tw.items_center
                                         , Tw.py_6
+                                        , Bp.lg
+                                            [ Tw.pl_10
+                                            , Tw.text_right
+                                            , Tw.border_l
+                                            , Tw.border_color Tw.gray_600
+                                            , Tw.border_solid
+                                            , Tw.border_r_0
+                                            , Tw.border_b_0
+                                            , Tw.border_t_0
+                                            ]
                                         ]
                                     ]
                                     [ Html.div [ Attr.css [ Tw.flex, Tw.flex_col ] ]
@@ -808,7 +830,6 @@ view model =
                                                     , Tw.bg_color Tw.slate_900
                                                     , Tw.font_mono
                                                     , Tw.text_color Tw.teal_400
-                                                    , Tw.text_right
                                                     , Css.focus
                                                         [ Tw.outline_0
                                                         , Tw.ring_color Tw.gray_300
@@ -817,6 +838,7 @@ view model =
                                                         [ Tw.text_lg
                                                         , Tw.leading_6
                                                         ]
+                                                    , Bp.lg [ Tw.text_right ]
                                                     ]
                                                 , Attr.value <| model.url ++ "invite/" ++ (model.roomId |> Maybe.withDefault 1 |> String.fromInt)
                                                 ]
@@ -1042,14 +1064,14 @@ viewCharts model =
                                     |> List.indexedMap
                                         (\int entry ->
                                             Html.li []
-                                                [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4, Tw.justify_end ] ]
+                                                [ Html.div [ Attr.css [ Tw.flex, Tw.flex_col, Tw.gap_4, Tw.justify_end, Bp.lg [ Tw.flex_row ] ] ]
                                                     [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4 ] ]
-                                                        [ Html.span [ Attr.css [ Css.width (Css.px 31), Css.height (Css.px 31), Tw.bg_color (Util.getColor int) ] ] []
+                                                        [ Html.span [ Attr.css [ Css.width (Css.px 31), Css.height (Css.px 31), Tw.bg_color (Util.getColor int), Tw.hidden, Bp.lg [ Tw.block ] ] ] []
                                                         , Html.span [ Attr.css [ Css.minWidth (Css.px 40) ] ] [ entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text ]
-                                                        , Html.span [ Attr.css [ Css.minWidth (Css.px 57) ] ] [ text <| (entry.percentage |> String.fromFloat) ++ "%" ]
+                                                        , Html.span [ Attr.css [ Css.minWidth (Css.px 57) ] ] [ text <| Util.roundFloat entry.percentage 2 ++ "%" ]
                                                         , Html.span [ Attr.css [ Css.minWidth (Css.px 123) ] ] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " " ++ pluralification entry.numOfVoters "player" ++ ")" ]
                                                         ]
-                                                    , Html.div [ Attr.css [ Tw.w_96, Tw.bg_color Tw.slate_900, Tw.h_8 ] ]
+                                                    , Html.div [ Attr.css [ Tw.w_full, Tw.bg_color Tw.slate_900, Tw.h_8, Bp.lg [ Tw.w_72 ] ] ]
                                                         [ Html.div
                                                             [ if model.shouldStartChartAnimation then
                                                                 Attr.class "transition-width"
@@ -1079,7 +1101,7 @@ viewCharts model =
                             donutModel =
                                 Donut.init model.users
                         in
-                        Html.div [ Attr.css [ Tw.flex, Tw.flex_1 ] ]
+                        Html.div [ Attr.css [ Tw.flex, Tw.flex_1, Tw.flex_col, Bp.lg [ Tw.flex_row ] ] ]
                             [ Html.div []
                                 [ Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.flex_col, Tw.p_0, Tw.m_0, Tw.text_2xl, Tw.mb_10, Tw.gap_4 ] ]
                                     (model.users
@@ -1095,11 +1117,11 @@ viewCharts model =
                                         |> List.indexedMap
                                             (\int entry ->
                                                 Html.li []
-                                                    [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4, Tw.justify_end ] ]
+                                                    [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4, Bp.lg [ Tw.justify_end ] ] ]
                                                         [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4 ] ]
                                                             [ Html.span [ Attr.css [ Css.width (Css.px 31), Css.height (Css.px 31), Tw.bg_color (Util.getColor int) ] ] []
                                                             , Html.span [ Attr.css [ Css.minWidth (Css.px 40) ] ] [ entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text ]
-                                                            , Html.span [ Attr.css [ Css.minWidth (Css.px 57) ] ] [ text <| (entry.percentage |> String.fromFloat) ++ "%" ]
+                                                            , Html.span [ Attr.css [ Css.minWidth (Css.px 57) ] ] [ text <| Util.roundFloat entry.percentage 2 ++ "%" ]
                                                             , Html.span [ Attr.css [ Css.minWidth (Css.px 123) ] ] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " " ++ pluralification entry.numOfVoters "player" ++ ")" ]
                                                             ]
                                                         ]

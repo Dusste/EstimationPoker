@@ -39,3 +39,7 @@ button {
     80% { left: 80rem;visibility: visible; opacity: 0.5; }
     100% { left: 120rem; visibility: hidden;}
 }
+
+.transitionToLeft {
+    animation: goleft 3s ease-in-out; 
+}
