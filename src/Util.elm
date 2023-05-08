@@ -1,6 +1,5 @@
 module Util exposing (..)
 
-import Array
 import Dict exposing (Dict)
 import Tailwind.Theme as Tw
 import Types exposing (..)
@@ -65,7 +64,7 @@ getBaseUrl : Url -> String
 getBaseUrl u =
     case u.port_ of
         Nothing ->
-            "http://www." ++ u.host ++ "/"
+            "https://" ++ u.host ++ "/"
 
         Just p ->
             "http://"
