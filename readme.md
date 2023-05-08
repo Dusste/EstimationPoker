@@ -1,5 +1,5 @@
 # Estimation Poker
 ### \w Elm, Lamdera, TailwindCSS
-> Run: lamdera live
-
+> npm i
+> lamdera live
 https://est-poker.lamdera.app
