@@ -53,8 +53,8 @@ init usersList =
 
 viewDonutData : Model -> List (Html msg)
 viewDonutData model =
-    [ circle [ SvgAttr.class "donut-hole", SvgAttr.cx "20", SvgAttr.cy "20", SvgAttr.r "15.91549430918954" ] []
-    , circle [ SvgAttr.class "donut-ring", SvgAttr.cx "20", SvgAttr.cy "20", SvgAttr.r "15.91549430918954", SvgAttr.fill "transparent", SvgAttr.strokeWidth "3.5" ] []
+    [ circle [ SvgAttr.class "donut-hole", SvgAttr.cx "20", SvgAttr.cy "20", SvgAttr.r "15.91549430918954", SvgAttr.fill "#000000" ] []
+    , circle [ SvgAttr.class "donut-ring", SvgAttr.cx "20", SvgAttr.cy "20", SvgAttr.r "15.91549430918954", SvgAttr.fill "transparent", SvgAttr.strokeWidth "3.5", SvgAttr.stroke "#EBEBEB" ] []
     ]
         ++ (model.chartData
                 |> List.indexedMap

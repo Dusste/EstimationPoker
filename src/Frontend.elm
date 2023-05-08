@@ -265,7 +265,7 @@ update msg model =
             )
 
         SkipStory ->
-            ( { model | shouldStartClock = False, clock = 0, card = Nothing, shouldFlipCards = False }, sendToBackend <| SignalSkipStory (model.roomId |> Maybe.withDefault 1) )
+            ( { model | shouldStartClock = False, clock = 0, card = Nothing, shouldFlipCards = False, shouldShowCharts = False }, sendToBackend <| SignalSkipStory (model.roomId |> Maybe.withDefault 1) )
 
         NextStory ->
             let
@@ -672,6 +672,7 @@ view model =
                                         , Tw.flex_col
                                         , Tw.flex_1
                                         , Tw.pr_4
+                                        , Tw.py_6
                                         ]
                                     ]
                                     [ Html.div
@@ -683,9 +684,7 @@ view model =
                                             , Tw.justify_between
                                             , Tw.items_center
                                             , Bp.sm
-                                                [ Tw.mx_auto
-                                                , Tw.w_full
-                                                ]
+                                                [ Tw.gap_10 ]
                                             ]
                                         ]
                                         [ Html.h2 [ Attr.css [ Tw.m_0 ] ] [ model.roomName |> Maybe.withDefault "Room name is not available" |> text ]
@@ -776,7 +775,7 @@ view model =
                                     [ Attr.css
                                         [ Tw.text_right
                                         , Tw.border_l
-                                        , Tw.border_color Tw.teal_400
+                                        , Tw.border_color Tw.gray_600
                                         , Tw.border_solid
                                         , Tw.border_r_0
                                         , Tw.border_b_0
@@ -784,6 +783,7 @@ view model =
                                         , Tw.pl_10
                                         , Tw.flex
                                         , Tw.items_center
+                                        , Tw.py_6
                                         ]
                                     ]
                                     [ Html.div [ Attr.css [ Tw.flex, Tw.flex_col ] ]
@@ -933,29 +933,12 @@ view model =
     }
 
 
-cards : List { name : String, value : Float }
-cards =
-    [ { name = "0", value = 0 }
-    , { name = "1/2", value = 1.5 }
-    , { name = "1", value = 1 }
-    , { name = "2", value = 2 }
-    , { name = "3", value = 3 }
-    , { name = "5", value = 5 }
-    , { name = "13", value = 13 }
-    , { name = "20", value = 20 }
-    , { name = "40", value = 40 }
-    , { name = "100", value = 100 }
-    , { name = "?", value = 0 }
-    , { name = 0x2615 |> Char.fromCode |> String.fromChar, value = 0 }
-    ]
-
-
 viewCards : FrontendModel -> Html FrontendMsg
 viewCards model =
     Html.div []
         [ Html.h3 [ Attr.css [ Tw.text_color Tw.gray_400, Tw.font_light ] ] [ text "[ Pick card to estimate story ]" ]
         , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.flex_wrap, Tw.p_0, Tw.m_0, Tw.gap_10, Tw.text_2xl ] ]
-            (cards
+            (Util.cards
                 |> List.map
                     (\card ->
                         Html.li
@@ -1139,15 +1122,16 @@ viewCharts model =
 
 buttonStyle : List Css.Style
 buttonStyle =
-    [ Tw.bg_color Tw.transparent
+    [ Tw.bg_color Tw.teal_400
     , Tw.text_color Tw.white
-    , Tw.py_2
+    , Tw.py_1
     , Tw.px_4
-    , Tw.text_2xl
+    , Tw.text_xl
     , Tw.border
-    , Tw.border_color Tw.white
+    , Tw.border_color Tw.teal_400
     , Tw.rounded
     , Tw.cursor_pointer
+    , Tw.transition_all
     , Css.hover
         [ Tw.bg_color Tw.white
         , Tw.text_color Tw.black
@@ -1173,6 +1157,7 @@ inputStyle =
     , Tw.rounded_md
     , Tw.border_0
     , Tw.py_1_dot_5
+    , Tw.h_10
     , Tw.text_color Tw.gray_900
     , Tw.shadow_sm
     , Tw.ring_1

@@ -252,3 +252,20 @@ colorConfig =
         , ( 30, Tw.pink_800 )
         , ( 31, Tw.sky_300 )
         ]
+
+
+cards : List { name : String, value : Float }
+cards =
+    [ { name = "0", value = 0 }
+    , { name = "1/2", value = 1.5 }
+    , { name = "1", value = 1 }
+    , { name = "2", value = 2 }
+    , { name = "3", value = 3 }
+    , { name = "5", value = 5 }
+    , { name = "13", value = 13 }
+    , { name = "20", value = 20 }
+    , { name = "40", value = 40 }
+    , { name = "100", value = 100 }
+    , { name = "?", value = 0 }
+    , { name = 0x2615 |> Char.fromCode |> String.fromChar, value = 0 }
+    ]
