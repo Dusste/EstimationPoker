@@ -20,7 +20,7 @@ type alias FrontendModel =
     , error : InvalidTextFiled
     , roomId : Maybe Int -- index in BE model
     , users : List User
-    , clientId : Maybe ClientId
+    , sessionId : Maybe SessionId
     , clock : Int
     , shouldStartClock : Bool
     , shouldFlipCards : Bool
@@ -92,7 +92,7 @@ type alias User =
     { name : ValidTextField
     , isAdmin : Bool
     , card : Maybe Float
-    , clientId : ClientId
+    , sessionId : SessionId
     , hasVoted : Bool
     }
 
@@ -110,7 +110,7 @@ defaultUser =
     { name = "Name not available"
     , isAdmin = False
     , card = Nothing
-    , clientId = "Invalid client id"
+    , sessionId = "Invalid session id"
     , hasVoted = False
     }
 
@@ -168,8 +168,8 @@ type BackendMsg
 
 type ToFrontend
     = SendRoomIdToFE Int
-    | ResRoomRoute { status : Status, roomName : String, clientId : ClientId, users : List User, stories : List ValidTextField }
-    | UpdateRoom { clientId : ClientId, name : String }
+    | ResRoomRoute { status : Status, roomName : String, sessionId : SessionId, users : List User, stories : List ValidTextField }
+    | UpdateRoom { sessionId : SessionId, name : String }
     | SupplyBEData { users : List User, stories : List ValidTextField }
     | UpdateUsers (List User)
     | UsersStartTimer
@@ -181,5 +181,3 @@ type ToFrontend
     | ExposeCharts
     | UpdateStories (List ValidTextField) (List User)
     | ChartAnimation
-    | UserHasDisconnected ClientId
-    | UserHasConnected ClientId

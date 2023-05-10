@@ -75,7 +75,7 @@ initialModel url key =
     , stories = []
     , credentials = Admin
     , users = []
-    , clientId = Nothing
+    , sessionId = Nothing
     , clock = 0
     , chart = Bar
     , shouldStartClock = False
@@ -155,15 +155,15 @@ update msg model =
                 Ok validInput ->
                     case cred of
                         Admin ->
-                            -- TODO fix cleintId not use maybe
-                            ( { model | status = CreateRoomStep, error = Nothing, name = Nothing, users = { defaultUser | clientId = model.clientId |> Maybe.withDefault "123", name = validInput, isAdmin = True } :: model.users }
+                            -- TODO fix sessionId not use maybe
+                            ( { model | status = CreateRoomStep, error = Nothing, name = Nothing, users = { defaultUser | sessionId = model.sessionId |> Maybe.withDefault "123", name = validInput, isAdmin = True } :: model.users }
                             , sendToBackend <| SendAdminNameToBE validInput
                             )
 
                         Employee ->
-                            case model.clientId of
-                                Just clientId ->
-                                    ( { model | status = PokerStep, error = Nothing, name = Nothing, users = { defaultUser | clientId = clientId, name = validInput } :: model.users }
+                            case model.sessionId of
+                                Just sessionId ->
+                                    ( { model | status = PokerStep, error = Nothing, name = Nothing, users = { defaultUser | sessionId = sessionId, name = validInput } :: model.users }
                                     , Cmd.batch [ sendToBackend <| SendUserNameToBE validInput (model.roomId |> Maybe.withDefault 1), Nav.pushUrl model.key <| "/room/" ++ (model.roomId |> Maybe.withDefault 1 |> String.fromInt) ]
                                     )
 
@@ -221,14 +221,14 @@ update msg model =
             ( { model | story = Just str, error = Nothing }, Cmd.none )
 
         ChooseCard cardValue cardName ->
-            case model.clientId of
-                Just justClientId ->
+            case model.sessionId of
+                Just justSessionId ->
                     let
                         updatedUsers =
                             model.users
                                 |> List.map
                                     (\user ->
-                                        if user.clientId == justClientId then
+                                        if user.sessionId == justSessionId then
                                             { user | card = Just cardValue, hasVoted = True }
 
                                         else
@@ -295,11 +295,11 @@ updateFromBackend msg model =
         SendRoomIdToFE roomId ->
             ( { model | roomId = Just roomId }, Cmd.none )
 
-        ResRoomRoute { status, roomName, clientId, stories, users } ->
+        ResRoomRoute { status, roomName, sessionId, stories, users } ->
             let
                 isAdmin =
                     users
-                        |> List.filter (\user -> user.clientId == clientId)
+                        |> List.filter (\user -> user.sessionId == sessionId)
                         |> List.head
                         |> Maybe.withDefault defaultUser
                         |> .isAdmin
@@ -307,7 +307,7 @@ updateFromBackend msg model =
             ( { model
                 | status = status
                 , roomName = Just roomName
-                , clientId = Just clientId
+                , sessionId = Just sessionId
                 , stories = stories
                 , users = users
                 , credentials =
@@ -320,8 +320,8 @@ updateFromBackend msg model =
             , Cmd.none
             )
 
-        UpdateRoom { clientId, name } ->
-            ( { model | users = { defaultUser | clientId = clientId, name = name } :: model.users }, Cmd.none )
+        UpdateRoom { sessionId, name } ->
+            ( { model | users = { defaultUser | sessionId = sessionId, name = name } :: model.users }, Cmd.none )
 
         SupplyBEData { stories, users } ->
             ( { model | stories = stories, users = users }, Cmd.none )
@@ -355,12 +355,6 @@ updateFromBackend msg model =
 
         ChartAnimation ->
             ( { model | shouldStartChartAnimation = True }, Cmd.none )
-
-        UserHasDisconnected clientId ->
-            ( { model | error = Just <| "Disconnected! " ++ clientId }, Cmd.none )
-
-        UserHasConnected clientId ->
-            ( { model | error = Just <| "Connected! " ++ clientId }, Cmd.none )
 
 
 view : Model -> Browser.Document FrontendMsg
@@ -855,7 +849,7 @@ view model =
                                             , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.flex_col, Tw.text_2xl, Tw.gap_4 ] ]
                                                 (model.users
                                                     |> List.map
-                                                        (\{ isAdmin, name, card, hasVoted, clientId } ->
+                                                        (\{ isAdmin, name, card, hasVoted } ->
                                                             if isAdmin then
                                                                 Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.text_color Tw.blue_400 ] ]
                                                                     [ Html.div []
@@ -881,7 +875,6 @@ view model =
                                                                                     text ""
                                                                         ]
                                                                     , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
-                                                                    , Html.p [ Attr.css [ Tw.m_0 ] ] [ text clientId ]
                                                                     ]
 
                                                             else
