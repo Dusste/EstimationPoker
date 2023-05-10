@@ -849,7 +849,7 @@ view model =
                                             , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.flex_col, Tw.text_2xl, Tw.gap_4 ] ]
                                                 (model.users
                                                     |> List.map
-                                                        (\{ isAdmin, name, card, hasVoted } ->
+                                                        (\{ isAdmin, name, card, hasVoted, clientId } ->
                                                             if isAdmin then
                                                                 Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.text_color Tw.blue_400 ] ]
                                                                     [ Html.div []
@@ -875,6 +875,7 @@ view model =
                                                                                     text ""
                                                                         ]
                                                                     , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
+                                                                    , Html.p [ Attr.css [] ] [ clientId |> text ]
                                                                     ]
 
                                                             else
