@@ -181,3 +181,5 @@ type ToFrontend
     | ExposeCharts
     | UpdateStories (List ValidTextField) (List User)
     | ChartAnimation
+    | UserHasDisconnected ClientId
+    | UserHasConnected ClientId

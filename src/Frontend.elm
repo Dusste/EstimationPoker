@@ -356,6 +356,12 @@ updateFromBackend msg model =
         ChartAnimation ->
             ( { model | shouldStartChartAnimation = True }, Cmd.none )
 
+        UserHasDisconnected clientId ->
+            ( { model | error = Just <| "Disconnected! " ++ clientId }, Cmd.none )
+
+        UserHasConnected clientId ->
+            ( { model | error = Just <| "Connected! " ++ clientId }, Cmd.none )
+
 
 view : Model -> Browser.Document FrontendMsg
 view model =
@@ -875,7 +881,7 @@ view model =
                                                                                     text ""
                                                                         ]
                                                                     , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
-                                                                    , Html.p [ Attr.css [] ] [ clientId |> text ]
+                                                                    , Html.p [ Attr.css [ Tw.m_0 ] ] [ text clientId ]
                                                                     ]
 
                                                             else
