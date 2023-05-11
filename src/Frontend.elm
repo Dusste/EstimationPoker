@@ -10,7 +10,7 @@ import Html.Styled.Attributes as Attr
 import Html.Styled.Events exposing (onClick, onInput)
 import Lamdera exposing (sendToBackend)
 import Process
-import Svg.Styled exposing (path, svg)
+import Svg.Styled exposing (g, path, svg)
 import Svg.Styled.Attributes as SvgAttr
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Tw
@@ -65,7 +65,7 @@ app =
 initialModel : Url -> Nav.Key -> Model
 initialModel url key =
     { key = key
-    , url = Util.getBaseUrl url -- TODO make it base url only: localhost:8000/
+    , url = Util.getBaseUrl url
     , status = EnterAdminNameStep
     , name = Nothing
     , roomName = Nothing
@@ -83,6 +83,7 @@ initialModel url key =
     , shouldShowCharts = False
     , shouldStartChartAnimation = False
     , card = Nothing
+    , announcement = []
     }
 
 
@@ -321,19 +322,28 @@ updateFromBackend msg model =
             )
 
         UpdateRoom { sessionId, name } ->
-            ( { model | users = { defaultUser | sessionId = sessionId, name = name } :: model.users }, Cmd.none )
+            let
+                updatedAnnouncement =
+                    model.announcement
+                        |> List.drop 1
+                        |> (++) [ Just <| name ++ " has joined !" ]
+            in
+            ( { model | users = { defaultUser | sessionId = sessionId, name = name } :: model.users, announcement = updatedAnnouncement }, Cmd.none )
 
         SupplyBEData { stories, users } ->
             ( { model | stories = stories, users = users }, Cmd.none )
 
-        UpdateUsers users ->
-            ( { model | users = users }, Cmd.none )
-
         UsersStartTimer ->
-            ( { model | shouldStartClock = True }, Cmd.none )
+            let
+                updatedAnnouncement =
+                    model.announcement
+                        |> List.drop 1
+                        |> (++) [ Just "Start voting !" ]
+            in
+            ( { model | shouldStartClock = True, announcement = updatedAnnouncement }, Cmd.none )
 
         UsersResetTimer ->
-            ( { model | shouldStartClock = False, clock = 0 }, Cmd.none )
+            ( { model | shouldStartClock = False, clock = 0, announcement = [] }, Cmd.none )
 
         UpdateCards users ->
             ( { model | users = users }, Cmd.none )
@@ -345,10 +355,10 @@ updateFromBackend msg model =
             ( { model | users = users, shouldFlipCards = False, card = Nothing }, Cmd.none )
 
         SkipStoryAndExposeCharts users ->
-            ( { model | users = users, shouldFlipCards = False, card = Nothing, shouldShowCharts = True, shouldStartClock = False, clock = 0 }, Cmd.none )
+            ( { model | users = users, shouldFlipCards = False, card = Nothing, shouldShowCharts = True, shouldStartClock = False, clock = 0, announcement = [] }, Cmd.none )
 
         ExposeCharts ->
-            ( { model | shouldShowCharts = not <| model.shouldShowCharts, shouldStartClock = False, clock = 0 }, Cmd.none )
+            ( { model | shouldShowCharts = not <| model.shouldShowCharts, shouldStartClock = False, clock = 0, announcement = [] }, Cmd.none )
 
         UpdateStories updatedStories resetUsers ->
             ( { model | stories = updatedStories, shouldShowCharts = not <| model.shouldShowCharts, users = resetUsers, shouldStartChartAnimation = False }, Cmd.none )
@@ -364,53 +374,107 @@ view model =
         [ Html.toUnstyled <|
             Html.div [ Attr.css [ Tw.flex, Tw.h_full, Tw.bg_color Tw.black, Tw.h_screen ] ]
                 [ Html.div [ Attr.css [ Tw.h_full, Tw.w_full, Tw.flex, Tw.flex_col ] ]
-                    [ Html.div
-                        [ Attr.css
-                            [ Tw.p_4
-                            , Tw.absolute
-                            , Tw.w_full
-                            , Tw.transition_opacity
-                            , Tw.flex
-                            , Tw.duration_200
-                            , Tw.ease_in
+                    [ Html.div [ Attr.css [ Tw.absolute, Tw.w_full ] ]
+                        [ Html.div
+                            [ Attr.css
+                                [ Tw.p_2
+                                , Tw.w_full
+                                , Tw.flex
+                                , case model.error of
+                                    Just _ ->
+                                        Tw.flex
+
+                                    Nothing ->
+                                        Tw.hidden
+                                , Tw.text_lg
+                                , Tw.justify_center
+                                , Tw.text_color Tw.red_800
+                                , Tw.bg_color Tw.red_200
+                                ]
+                            ]
+                            [ svg
+                                [ Attr.css
+                                    [ Tw.flex_shrink_0
+                                    , Tw.inline
+                                    , Tw.w_7
+                                    , Tw.h_7
+                                    , Tw.mr_3
+                                    ]
+                                , SvgAttr.fill "currentColor"
+                                , SvgAttr.viewBox "0 0 20 20"
+                                ]
+                                [ path
+                                    [ SvgAttr.fillRule "evenodd"
+                                    , SvgAttr.d "M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                    , SvgAttr.clipRule "evenodd"
+                                    ]
+                                    []
+                                ]
                             , case model.error of
-                                Just _ ->
-                                    Tw.flex
+                                Just err ->
+                                    text err
 
                                 Nothing ->
-                                    Tw.hidden
-                            , Tw.mb_4
-                            , Tw.text_lg
-                            , Tw.justify_center
-                            , Tw.text_color Tw.red_800
-                            , Tw.bg_color Tw.red_200
+                                    text ""
                             ]
-                        , Attr.attribute "role" "alert"
-                        ]
-                        [ svg
-                            [ Attr.css
-                                [ Tw.flex_shrink_0
-                                , Tw.inline
-                                , Tw.w_7
-                                , Tw.h_7
-                                , Tw.mr_3
-                                ]
-                            , SvgAttr.fill "currentColor"
-                            , SvgAttr.viewBox "0 0 20 20"
-                            ]
-                            [ path
-                                [ SvgAttr.fillRule "evenodd"
-                                , SvgAttr.d "M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                , SvgAttr.clipRule "evenodd"
-                                ]
-                                []
-                            ]
-                        , case model.error of
-                            Just err ->
-                                text err
+                        , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.w_full ] ]
+                            (model.announcement
+                                |> List.map
+                                    (\maybeInfo ->
+                                        Html.li
+                                            [ Attr.css
+                                                [ Tw.p_2
+                                                , Tw.w_full
+                                                , Tw.flex
+                                                , case maybeInfo of
+                                                    Just _ ->
+                                                        Tw.flex
 
-                            Nothing ->
-                                text ""
+                                                    Nothing ->
+                                                        Tw.hidden
+                                                , Tw.text_lg
+                                                , Tw.justify_center
+                                                , Tw.text_color Tw.green_800
+                                                , Tw.bg_color Tw.green_200
+                                                ]
+                                            ]
+                                            [ svg
+                                                [ SvgAttr.fill "#000000"
+                                                , SvgAttr.height "22px"
+                                                , SvgAttr.width "22px"
+                                                , SvgAttr.version "1.1"
+                                                , SvgAttr.id "Capa_1"
+                                                , SvgAttr.viewBox "0 0 512 512"
+                                                , SvgAttr.xmlSpace "preserve"
+                                                , Attr.css
+                                                    [ Tw.flex_shrink_0
+                                                    , Tw.inline
+                                                    , Tw.w_7
+                                                    , Tw.h_7
+                                                    , Tw.mr_3
+                                                    ]
+                                                , SvgAttr.fill "currentColor"
+                                                ]
+                                                [ g []
+                                                    [ path
+                                                        [ SvgAttr.d "M474.045,173.813c-4.201,1.371-6.494,5.888-5.123,10.088c7.571,23.199,11.411,47.457,11.411,72.1   c0,62.014-24.149,120.315-68,164.166s-102.153,68-164.167,68s-120.316-24.149-164.167-68S16,318.014,16,256   S40.149,135.684,84,91.833s102.153-68,164.167-68c32.889,0,64.668,6.734,94.455,20.017c28.781,12.834,54.287,31.108,75.81,54.315   c3.004,3.239,8.066,3.431,11.306,0.425c3.24-3.004,3.43-8.065,0.426-11.306c-23-24.799-50.26-44.328-81.024-58.047   C317.287,15.035,283.316,7.833,248.167,7.833c-66.288,0-128.608,25.813-175.48,72.687C25.814,127.392,0,189.712,0,256   c0,66.287,25.814,128.607,72.687,175.479c46.872,46.873,109.192,72.687,175.48,72.687s128.608-25.813,175.48-72.687   c46.873-46.872,72.687-109.192,72.687-175.479c0-26.332-4.105-52.26-12.201-77.064   C482.762,174.736,478.245,172.445,474.045,173.813z"
+                                                        ]
+                                                        []
+                                                    , path
+                                                        [ SvgAttr.d "M504.969,83.262c-4.532-4.538-10.563-7.037-16.98-7.037s-12.448,2.499-16.978,7.034l-7.161,7.161   c-3.124,3.124-3.124,8.189,0,11.313c3.124,3.123,8.19,3.124,11.314-0.001l7.164-7.164c1.51-1.512,3.52-2.344,5.66-2.344   s4.15,0.832,5.664,2.348c1.514,1.514,2.348,3.524,2.348,5.663s-0.834,4.149-2.348,5.663L217.802,381.75   c-1.51,1.512-3.52,2.344-5.66,2.344s-4.15-0.832-5.664-2.348L98.747,274.015c-1.514-1.514-2.348-3.524-2.348-5.663   c0-2.138,0.834-4.149,2.351-5.667c1.51-1.512,3.52-2.344,5.66-2.344s4.15,0.832,5.664,2.348l96.411,96.411   c1.5,1.5,3.535,2.343,5.657,2.343s4.157-0.843,5.657-2.343l234.849-234.849c3.125-3.125,3.125-8.189,0-11.314   c-3.124-3.123-8.189-3.123-11.313,0L212.142,342.129l-90.75-90.751c-4.533-4.538-10.563-7.037-16.98-7.037   s-12.448,2.499-16.978,7.034c-4.536,4.536-7.034,10.565-7.034,16.977c0,6.412,2.498,12.441,7.034,16.978l107.728,107.728   c4.532,4.538,10.563,7.037,16.98,7.037c6.417,0,12.448-2.499,16.977-7.033l275.847-275.848c4.536-4.536,7.034-10.565,7.034-16.978   S509.502,87.794,504.969,83.262z"
+                                                        ]
+                                                        []
+                                                    ]
+                                                ]
+                                            , case maybeInfo of
+                                                Just str ->
+                                                    text str
+
+                                                Nothing ->
+                                                    text ""
+                                            ]
+                                    )
+                            )
                         ]
                     , case model.status of
                         EnterAdminNameStep ->
@@ -439,8 +503,6 @@ view model =
                                         ]
                                     ]
                                     [ Html.h2 [ Attr.css [ Tw.mt_0, Tw.mb_4 ] ] [ text "Add your name" ] ]
-
-                                -- , svg [] [ PieChart.main ]
                                 , Html.div
                                     [ Attr.css
                                         [ Bp.sm
@@ -1155,8 +1217,8 @@ buttonStyle =
     , Tw.cursor_pointer
     , Tw.transition_all
     , Css.hover
-        [ Tw.bg_color Tw.white
-        , Tw.text_color Tw.black
+        [ Tw.bg_color Tw.teal_700
+        , Tw.border_color Tw.teal_400
         , Tw.border_color Tw.transparent
         ]
     ]

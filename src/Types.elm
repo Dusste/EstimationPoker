@@ -28,6 +28,7 @@ type alias FrontendModel =
     , shouldShowCharts : Bool
     , card : Maybe String
     , shouldStartChartAnimation : Bool
+    , announcement : List (Maybe String)
     }
 
 
@@ -171,7 +172,6 @@ type ToFrontend
     | ResRoomRoute { status : Status, roomName : String, sessionId : SessionId, users : List User, stories : List ValidTextField }
     | UpdateRoom { sessionId : SessionId, name : String }
     | SupplyBEData { users : List User, stories : List ValidTextField }
-    | UpdateUsers (List User)
     | UsersStartTimer
     | UsersResetTimer
     | UpdateCards (List User)
