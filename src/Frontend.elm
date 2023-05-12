@@ -289,6 +289,9 @@ update msg model =
         ShowBarChart ->
             ( { model | chart = Bar }, Cmd.none )
 
+        HideNotification ->
+            ( { model | announcement = List.drop 1 model.announcement }, Cmd.none )
+
 
 updateFromBackend : ToFrontend -> Model -> ( Model, Cmd FrontendMsg )
 updateFromBackend msg model =
@@ -324,11 +327,12 @@ updateFromBackend msg model =
         UpdateRoom { sessionId, name } ->
             let
                 updatedAnnouncement =
-                    model.announcement
-                        |> List.drop 1
-                        |> (++) [ Just <| name ++ " has joined !" ]
+                    model.announcement ++ [ Just <| name ++ " has joined !" ]
             in
-            ( { model | users = { defaultUser | sessionId = sessionId, name = name } :: model.users, announcement = updatedAnnouncement }, Cmd.none )
+            ( { model | users = { defaultUser | sessionId = sessionId, name = name } :: model.users, announcement = updatedAnnouncement }
+            , Process.sleep 4000
+                |> Task.perform (\_ -> HideNotification)
+            )
 
         SupplyBEData { stories, users } ->
             ( { model | stories = stories, users = users }, Cmd.none )
@@ -337,7 +341,6 @@ updateFromBackend msg model =
             let
                 updatedAnnouncement =
                     model.announcement
-                        |> List.drop 1
                         |> (++) [ Just "Start voting !" ]
             in
             ( { model | shouldStartClock = True, announcement = updatedAnnouncement }, Cmd.none )
@@ -374,108 +377,7 @@ view model =
         [ Html.toUnstyled <|
             Html.div [ Attr.css [ Tw.flex, Tw.h_full, Tw.bg_color Tw.black, Tw.h_screen ] ]
                 [ Html.div [ Attr.css [ Tw.h_full, Tw.w_full, Tw.flex, Tw.flex_col ] ]
-                    [ Html.div [ Attr.css [ Tw.absolute, Tw.w_full ] ]
-                        [ Html.div
-                            [ Attr.css
-                                [ Tw.p_2
-                                , Tw.w_full
-                                , Tw.flex
-                                , case model.error of
-                                    Just _ ->
-                                        Tw.flex
-
-                                    Nothing ->
-                                        Tw.hidden
-                                , Tw.text_lg
-                                , Tw.justify_center
-                                , Tw.text_color Tw.red_800
-                                , Tw.bg_color Tw.red_200
-                                ]
-                            ]
-                            [ svg
-                                [ Attr.css
-                                    [ Tw.flex_shrink_0
-                                    , Tw.inline
-                                    , Tw.w_7
-                                    , Tw.h_7
-                                    , Tw.mr_3
-                                    ]
-                                , SvgAttr.fill "currentColor"
-                                , SvgAttr.viewBox "0 0 20 20"
-                                ]
-                                [ path
-                                    [ SvgAttr.fillRule "evenodd"
-                                    , SvgAttr.d "M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                    , SvgAttr.clipRule "evenodd"
-                                    ]
-                                    []
-                                ]
-                            , case model.error of
-                                Just err ->
-                                    text err
-
-                                Nothing ->
-                                    text ""
-                            ]
-                        , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.w_full ] ]
-                            (model.announcement
-                                |> List.map
-                                    (\maybeInfo ->
-                                        Html.li
-                                            [ Attr.css
-                                                [ Tw.p_2
-                                                , Tw.w_full
-                                                , Tw.flex
-                                                , case maybeInfo of
-                                                    Just _ ->
-                                                        Tw.flex
-
-                                                    Nothing ->
-                                                        Tw.hidden
-                                                , Tw.text_lg
-                                                , Tw.justify_center
-                                                , Tw.text_color Tw.green_800
-                                                , Tw.bg_color Tw.green_200
-                                                ]
-                                            ]
-                                            [ svg
-                                                [ SvgAttr.fill "#000000"
-                                                , SvgAttr.height "22px"
-                                                , SvgAttr.width "22px"
-                                                , SvgAttr.version "1.1"
-                                                , SvgAttr.id "Capa_1"
-                                                , SvgAttr.viewBox "0 0 512 512"
-                                                , SvgAttr.xmlSpace "preserve"
-                                                , Attr.css
-                                                    [ Tw.flex_shrink_0
-                                                    , Tw.inline
-                                                    , Tw.w_7
-                                                    , Tw.h_7
-                                                    , Tw.mr_3
-                                                    ]
-                                                , SvgAttr.fill "currentColor"
-                                                ]
-                                                [ g []
-                                                    [ path
-                                                        [ SvgAttr.d "M474.045,173.813c-4.201,1.371-6.494,5.888-5.123,10.088c7.571,23.199,11.411,47.457,11.411,72.1   c0,62.014-24.149,120.315-68,164.166s-102.153,68-164.167,68s-120.316-24.149-164.167-68S16,318.014,16,256   S40.149,135.684,84,91.833s102.153-68,164.167-68c32.889,0,64.668,6.734,94.455,20.017c28.781,12.834,54.287,31.108,75.81,54.315   c3.004,3.239,8.066,3.431,11.306,0.425c3.24-3.004,3.43-8.065,0.426-11.306c-23-24.799-50.26-44.328-81.024-58.047   C317.287,15.035,283.316,7.833,248.167,7.833c-66.288,0-128.608,25.813-175.48,72.687C25.814,127.392,0,189.712,0,256   c0,66.287,25.814,128.607,72.687,175.479c46.872,46.873,109.192,72.687,175.48,72.687s128.608-25.813,175.48-72.687   c46.873-46.872,72.687-109.192,72.687-175.479c0-26.332-4.105-52.26-12.201-77.064   C482.762,174.736,478.245,172.445,474.045,173.813z"
-                                                        ]
-                                                        []
-                                                    , path
-                                                        [ SvgAttr.d "M504.969,83.262c-4.532-4.538-10.563-7.037-16.98-7.037s-12.448,2.499-16.978,7.034l-7.161,7.161   c-3.124,3.124-3.124,8.189,0,11.313c3.124,3.123,8.19,3.124,11.314-0.001l7.164-7.164c1.51-1.512,3.52-2.344,5.66-2.344   s4.15,0.832,5.664,2.348c1.514,1.514,2.348,3.524,2.348,5.663s-0.834,4.149-2.348,5.663L217.802,381.75   c-1.51,1.512-3.52,2.344-5.66,2.344s-4.15-0.832-5.664-2.348L98.747,274.015c-1.514-1.514-2.348-3.524-2.348-5.663   c0-2.138,0.834-4.149,2.351-5.667c1.51-1.512,3.52-2.344,5.66-2.344s4.15,0.832,5.664,2.348l96.411,96.411   c1.5,1.5,3.535,2.343,5.657,2.343s4.157-0.843,5.657-2.343l234.849-234.849c3.125-3.125,3.125-8.189,0-11.314   c-3.124-3.123-8.189-3.123-11.313,0L212.142,342.129l-90.75-90.751c-4.533-4.538-10.563-7.037-16.98-7.037   s-12.448,2.499-16.978,7.034c-4.536,4.536-7.034,10.565-7.034,16.977c0,6.412,2.498,12.441,7.034,16.978l107.728,107.728   c4.532,4.538,10.563,7.037,16.98,7.037c6.417,0,12.448-2.499,16.977-7.033l275.847-275.848c4.536-4.536,7.034-10.565,7.034-16.978   S509.502,87.794,504.969,83.262z"
-                                                        ]
-                                                        []
-                                                    ]
-                                                ]
-                                            , case maybeInfo of
-                                                Just str ->
-                                                    text str
-
-                                                Nothing ->
-                                                    text ""
-                                            ]
-                                    )
-                            )
-                        ]
+                    [ viewNotifications model
                     , case model.status of
                         EnterAdminNameStep ->
                             Html.div
@@ -512,7 +414,7 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0 ] ] [ text "[ You're about to become an admin ]" ]
+                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ You're about to become an admin ]" ]
                                     , viewInput StoreName
                                         (model.name
                                             |> Maybe.withDefault ""
@@ -556,7 +458,9 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ Html.h2 [] [ model.roomName |> Maybe.withDefault "{default room name}" |> text ] ]
+                                    [ Html.p [] [ text "Hello, you've been invited to" ]
+                                    , Html.h2 [] [ model.roomName |> Maybe.withDefault "Room name not available" |> text ]
+                                    ]
                                 , Html.div
                                     [ Attr.css
                                         [ Bp.sm
@@ -567,7 +471,7 @@ view model =
                                         ]
                                     ]
                                     [ Html.p [ Attr.css [ Tw.mt_0, Tw.mb_4, Tw.text_2xl ] ] [ text "Add your name" ]
-                                    , Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0 ] ] [ text "[ After that we will redirect you to team's room ]" ]
+                                    , Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ After that we will redirect you to team's room ]" ]
                                     , viewInput StoreName
                                         (model.name
                                             |> Maybe.withDefault ""
@@ -621,7 +525,7 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0 ] ] [ text "[ Place where you can vote for stories ]" ]
+                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ Place where you can vote for stories ]" ]
                                     , viewInput StoreRoom
                                         (model.roomName
                                             |> Maybe.withDefault ""
@@ -675,7 +579,7 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0 ] ] [ text "[ Add multiple or one story ]" ]
+                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ Add multiple or one story ]" ]
                                     , Html.div [ Attr.css [ Tw.relative, Tw.mx_auto ] ]
                                         [ Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.text_2xl, Tw.gap_4, Tw.absolute, Tw.w_full ] ]
                                             (model.stories
@@ -753,7 +657,7 @@ view model =
                                                 [ Tw.gap_10, Tw.items_center, Tw.flex_row ]
                                             ]
                                         ]
-                                        [ Html.h2 [ Attr.css [ Tw.m_0 ] ] [ model.roomName |> Maybe.withDefault "Room name is not available" |> text ]
+                                        [ Html.h2 [ Attr.css [ Tw.m_0, Tw.break_all ] ] [ model.roomName |> Maybe.withDefault "Room name is not available" |> text ]
                                         , if model.shouldShowCharts then
                                             Html.div [ Attr.css [ Tw.flex, Tw.gap_2, Tw.text_xl ] ]
                                                 [ Html.span
@@ -788,7 +692,7 @@ view model =
                                           else
                                             text ""
                                         ]
-                                    , Html.h4 [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400 ] ] [ model.stories |> List.head |> Maybe.withDefault "There are no more stories" |> (++) "[ Current story ] " |> text ]
+                                    , Html.h4 [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400, Tw.font_extralight, Tw.break_all ] ] [ model.stories |> List.head |> Maybe.withDefault "There are no more stories" |> (++) "[ Current story ] " |> text ]
                                     , Html.div []
                                         [ Html.div []
                                             [ if model.shouldShowCharts then
@@ -849,7 +753,7 @@ view model =
                                         (model.stories
                                             |> List.map
                                                 (\story ->
-                                                    Html.li [] [ text story ]
+                                                    Html.li [ Attr.css [ Tw.break_all ] ] [ text story ]
                                                 )
                                         )
                                     ]
@@ -872,7 +776,7 @@ view model =
                                     ]
                                     [ Html.div [ Attr.css [ Tw.flex, Tw.flex_col ] ]
                                         [ Html.div [ Attr.css [ Tw.text_5xl ] ] [ text <| Util.fromIntToCounter model.clock ]
-                                        , Html.p [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400 ] ] [ text "[ Copy link and send to collegues ]" ]
+                                        , Html.p [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400, Tw.font_extralight ] ] [ text "[ Copy link and send to collegues ]" ]
                                         , Html.div []
                                             [ Html.input
                                                 [ Attr.readonly True
@@ -913,7 +817,7 @@ view model =
                                                     |> List.map
                                                         (\{ isAdmin, name, card, hasVoted } ->
                                                             if isAdmin then
-                                                                Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.text_color Tw.blue_400 ] ]
+                                                                Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.text_color Tw.blue_400, Tw.break_all ] ]
                                                                     [ Html.div []
                                                                         [ case model.credentials of
                                                                             Admin ->
@@ -942,7 +846,7 @@ view model =
                                                             else
                                                                 case model.credentials of
                                                                     Admin ->
-                                                                        Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4 ] ]
+                                                                        Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.break_all ] ]
                                                                             [ Html.div []
                                                                                 [ case card of
                                                                                     Just crd ->
@@ -955,7 +859,7 @@ view model =
                                                                             ]
 
                                                                     Employee ->
-                                                                        Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4 ] ]
+                                                                        Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.break_all ] ]
                                                                             [ Html.div []
                                                                                 [ if hasVoted && not model.shouldFlipCards then
                                                                                     Html.span [ Attr.css [ Tw.m_0 ] ] [ 0xA936 |> Char.fromCode |> String.fromChar |> text ]
@@ -1020,8 +924,19 @@ view model =
 viewCards : FrontendModel -> Html FrontendMsg
 viewCards model =
     Html.div []
-        [ Html.h3 [ Attr.css [ Tw.text_color Tw.gray_400, Tw.font_light ] ] [ text "[ Pick card to estimate story ]" ]
-        , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.flex_wrap, Tw.p_0, Tw.m_0, Tw.gap_10, Tw.text_2xl ] ]
+        [ Html.h3 [ Attr.css [ Tw.text_color Tw.gray_400, Tw.font_extralight ] ] [ text "[ Pick card to estimate story ]" ]
+        , Html.ul
+            [ Attr.css
+                [ Tw.list_none
+                , Tw.flex
+                , Tw.flex_wrap
+                , Tw.p_0
+                , Tw.m_0
+                , Tw.text_2xl
+                , Bp.md
+                    [ Tw.gap_10 ]
+                ]
+            ]
             (Util.cards
                 |> List.map
                     (\card ->
@@ -1032,11 +947,13 @@ viewCards model =
                                 , Tw.border_solid
                                 , Tw.border_2
                                 , Tw.justify_center
-                                , Tw.w_1over4
+                                , Tw.w_1over3
                                 , Tw.transition_all
                                 , Tw.duration_300
                                 , Tw.relative
                                 , Tw.cursor_pointer
+                                , Bp.md
+                                    [ Tw.w_1over4 ]
                                 ]
                             , if model.shouldStartClock then
                                 onClick (ChooseCard card.value card.name)
@@ -1081,6 +998,9 @@ viewCards model =
                                         , Tw.border_2
                                         , Tw.justify_center
                                         , Tw.w_1over4
+                                        , Tw.transition_all
+                                        , Tw.duration_300
+                                        , Tw.relative
                                         , Tw.p_5
                                         , Css.hover
                                             [ Tw.bg_color Tw.white
@@ -1273,3 +1193,116 @@ viewInput toMsg value =
         , Attr.value value
         ]
         []
+
+
+viewNotifications : Model -> Html FrontendMsg
+viewNotifications { error, announcement } =
+    Html.div [ Attr.css [ Tw.absolute, Tw.w_full ] ]
+        [ Html.div
+            [ Attr.css
+                [ Tw.p_2
+                , Tw.w_full
+                , Tw.flex
+                , case error of
+                    Just _ ->
+                        Tw.flex
+
+                    Nothing ->
+                        Tw.hidden
+                , Tw.text_lg
+                , Tw.justify_center
+                , Tw.text_color Tw.red_800
+                , Tw.bg_color Tw.red_200
+                ]
+            ]
+            [ svg
+                [ Attr.css
+                    [ Tw.flex_shrink_0
+                    , Tw.inline
+                    , Tw.w_7
+                    , Tw.h_7
+                    , Tw.mr_3
+                    ]
+                , SvgAttr.fill "currentColor"
+                , SvgAttr.viewBox "0 0 20 20"
+                ]
+                [ path
+                    [ SvgAttr.fillRule "evenodd"
+                    , SvgAttr.d "M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                    , SvgAttr.clipRule "evenodd"
+                    ]
+                    []
+                ]
+            , case error of
+                Just err ->
+                    text err
+
+                Nothing ->
+                    text ""
+            ]
+        , Html.ul
+            [ Attr.css
+                [ Tw.list_none
+                , Tw.flex
+                , Tw.p_0
+                , Tw.m_0
+                , Tw.flex_col
+                , Tw.fixed
+                , Tw.right_5
+                , Tw.top_5
+                , Tw.overflow_hidden
+                ]
+            ]
+            (announcement
+                |> List.map
+                    (\maybeInfo ->
+                        Html.li
+                            [ Attr.css
+                                [ Tw.p_2
+                                , Tw.rounded
+                                , Tw.flex
+                                , Tw.text_lg
+                                , Tw.justify_center
+                                , Tw.text_color Tw.green_800
+                                , Tw.bg_color Tw.green_200
+                                , Tw.mb_5
+                                , Tw.transition_all
+                                , Tw.duration_500
+                                ]
+                            ]
+                            [ svg
+                                [ SvgAttr.height "22px"
+                                , SvgAttr.width "22px"
+                                , SvgAttr.version "1.1"
+                                , SvgAttr.viewBox "0 0 512 512"
+                                , SvgAttr.xmlSpace "preserve"
+                                , Attr.css
+                                    [ Tw.flex_shrink_0
+                                    , Tw.inline
+                                    , Tw.w_7
+                                    , Tw.h_7
+                                    , Tw.mr_3
+                                    ]
+                                , SvgAttr.fill "currentColor"
+                                ]
+                                [ g []
+                                    [ path
+                                        [ SvgAttr.d "M474.045,173.813c-4.201,1.371-6.494,5.888-5.123,10.088c7.571,23.199,11.411,47.457,11.411,72.1   c0,62.014-24.149,120.315-68,164.166s-102.153,68-164.167,68s-120.316-24.149-164.167-68S16,318.014,16,256   S40.149,135.684,84,91.833s102.153-68,164.167-68c32.889,0,64.668,6.734,94.455,20.017c28.781,12.834,54.287,31.108,75.81,54.315   c3.004,3.239,8.066,3.431,11.306,0.425c3.24-3.004,3.43-8.065,0.426-11.306c-23-24.799-50.26-44.328-81.024-58.047   C317.287,15.035,283.316,7.833,248.167,7.833c-66.288,0-128.608,25.813-175.48,72.687C25.814,127.392,0,189.712,0,256   c0,66.287,25.814,128.607,72.687,175.479c46.872,46.873,109.192,72.687,175.48,72.687s128.608-25.813,175.48-72.687   c46.873-46.872,72.687-109.192,72.687-175.479c0-26.332-4.105-52.26-12.201-77.064   C482.762,174.736,478.245,172.445,474.045,173.813z"
+                                        ]
+                                        []
+                                    , path
+                                        [ SvgAttr.d "M504.969,83.262c-4.532-4.538-10.563-7.037-16.98-7.037s-12.448,2.499-16.978,7.034l-7.161,7.161   c-3.124,3.124-3.124,8.189,0,11.313c3.124,3.123,8.19,3.124,11.314-0.001l7.164-7.164c1.51-1.512,3.52-2.344,5.66-2.344   s4.15,0.832,5.664,2.348c1.514,1.514,2.348,3.524,2.348,5.663s-0.834,4.149-2.348,5.663L217.802,381.75   c-1.51,1.512-3.52,2.344-5.66,2.344s-4.15-0.832-5.664-2.348L98.747,274.015c-1.514-1.514-2.348-3.524-2.348-5.663   c0-2.138,0.834-4.149,2.351-5.667c1.51-1.512,3.52-2.344,5.66-2.344s4.15,0.832,5.664,2.348l96.411,96.411   c1.5,1.5,3.535,2.343,5.657,2.343s4.157-0.843,5.657-2.343l234.849-234.849c3.125-3.125,3.125-8.189,0-11.314   c-3.124-3.123-8.189-3.123-11.313,0L212.142,342.129l-90.75-90.751c-4.533-4.538-10.563-7.037-16.98-7.037   s-12.448,2.499-16.978,7.034c-4.536,4.536-7.034,10.565-7.034,16.977c0,6.412,2.498,12.441,7.034,16.978l107.728,107.728   c4.532,4.538,10.563,7.037,16.98,7.037c6.417,0,12.448-2.499,16.977-7.033l275.847-275.848c4.536-4.536,7.034-10.565,7.034-16.978   S509.502,87.794,504.969,83.262z"
+                                        ]
+                                        []
+                                    ]
+                                ]
+                            , case maybeInfo of
+                                Just str ->
+                                    text str
+
+                                Nothing ->
+                                    text ""
+                            ]
+                    )
+            )
+        ]

@@ -138,6 +138,7 @@ type FrontendMsg
     | StartChartAnimation
     | ShowDonutChart
     | ShowBarChart
+    | HideNotification
 
 
 type Chart
