@@ -1249,6 +1249,7 @@ viewNotifications { error, announcement } =
                 , Tw.flex_col
                 , Tw.fixed
                 , Tw.right_5
+                , Tw.z_10
                 , Tw.top_5
                 , Tw.overflow_hidden
                 ]
