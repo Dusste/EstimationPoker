@@ -141,7 +141,7 @@ updateFromFrontend sessionId clientId msg model =
                         |> List.map
                             (\user ->
                                 if user.sessionId == sessionId then
-                                    { user | card = Just cardValue, hasVoted = True }
+                                    { user | card = Just cardValue, voteState = HiddenVote }
 
                                 else
                                     user
@@ -189,8 +189,21 @@ updateFromFrontend sessionId clientId msg model =
 
         ResetTimerAndVote roomId ->
             let
+                updateUser usrs =
+                    usrs
+                        |> List.map
+                            (\user ->
+                                { user | voteState = NotVoted }
+                            )
+
+                updateRecord =
+                    Maybe.map (\room -> { room | users = updateUser room.users })
+
+                updateRooms =
+                    Dict.update roomId updateRecord model.rooms
+
                 { users } =
-                    model.rooms
+                    updateRooms
                         |> Dict.get roomId
                         |> Maybe.withDefault defaultRoom
 
@@ -205,21 +218,73 @@ updateFromFrontend sessionId clientId msg model =
             in
             ( model, notifyCertainUsersAboutSomething users UsersResetTimer sendToFrontend |> Cmd.batch )
 
-        InitiateFlipCards roomId ->
+        InitiateShowCards roomId ->
             let
+                updateUser usrs =
+                    usrs
+                        |> List.map
+                            (\user ->
+                                { user | voteState = Voted }
+                            )
+
+                updateRecord =
+                    Maybe.map (\room -> { room | users = updateUser room.users })
+
+                updateRooms =
+                    Dict.update roomId updateRecord model.rooms
+
                 { users } =
-                    model.rooms
+                    updateRooms
                         |> Dict.get roomId
                         |> Maybe.withDefault defaultRoom
 
-                notifyCertainUsersAboutSomething : List User -> toFrontend -> (SessionId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
+                notifyCertainUsersAboutSomething : List User -> (List User -> toFrontend) -> (SessionId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
                 notifyCertainUsersAboutSomething usrs msgToFe f =
                     case usrs of
                         [] ->
                             []
 
                         x :: xs ->
-                            f x.sessionId msgToFe :: notifyCertainUsersAboutSomething xs msgToFe f
+                            (f x.sessionId <| msgToFe users) :: notifyCertainUsersAboutSomething xs msgToFe f
+            in
+            ( model, notifyCertainUsersAboutSomething users UsersFlipCards sendToFrontend |> Cmd.batch )
+
+        InitiateHideCards roomId ->
+            let
+                updateUser usrs =
+                    usrs
+                        |> List.map
+                            (\user ->
+                                case user.voteState of
+                                    Voted ->
+                                        { user | voteState = HiddenVote }
+
+                                    NotVoted ->
+                                        { user | voteState = NotVoted }
+
+                                    HiddenVote ->
+                                        { user | voteState = HiddenVote }
+                            )
+
+                updateRecord =
+                    Maybe.map (\room -> { room | users = updateUser room.users })
+
+                updateRooms =
+                    Dict.update roomId updateRecord model.rooms
+
+                { users } =
+                    updateRooms
+                        |> Dict.get roomId
+                        |> Maybe.withDefault defaultRoom
+
+                notifyCertainUsersAboutSomething : List User -> (List User -> toFrontend) -> (SessionId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
+                notifyCertainUsersAboutSomething usrs msgToFe f =
+                    case usrs of
+                        [] ->
+                            []
+
+                        x :: xs ->
+                            (f x.sessionId <| msgToFe users) :: notifyCertainUsersAboutSomething xs msgToFe f
             in
             ( model, notifyCertainUsersAboutSomething users UsersFlipCards sendToFrontend |> Cmd.batch )
 
@@ -233,7 +298,7 @@ updateFromFrontend sessionId clientId msg model =
                 updateUsers =
                     users
                         |> List.map
-                            (\user -> { user | card = Nothing, hasVoted = False })
+                            (\user -> { user | card = Nothing, voteState = NotVoted })
 
                 updateRecord =
                     Maybe.map (\room -> { room | users = updateUsers })
@@ -262,7 +327,7 @@ updateFromFrontend sessionId clientId msg model =
                 updateUsers =
                     users
                         |> List.map
-                            (\user -> { user | card = Nothing, hasVoted = False })
+                            (\user -> { user | card = Nothing, voteState = NotVoted })
 
                 updateRecord =
                     Maybe.map (\room -> { room | users = updateUsers })
@@ -333,7 +398,7 @@ updateFromFrontend sessionId clientId msg model =
                 updateUsers =
                     users
                         |> List.map
-                            (\user -> { user | card = Nothing, hasVoted = False })
+                            (\user -> { user | card = Nothing, voteState = NotVoted })
 
                 notifyCertainUsersAboutSomething : List User -> (List ValidTextField -> List User -> toFrontend) -> (SessionId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
                 notifyCertainUsersAboutSomething usrs msgToFe f =

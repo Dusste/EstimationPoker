@@ -37,11 +37,7 @@ validateInput maybeStr =
                 trimmedStr =
                     String.trim str
             in
-            if String.length trimmedStr > 3 then
-                Ok trimmedStr
-
-            else
-                Err <| Just "Input is invalid"
+            Ok trimmedStr
 
 
 app =
@@ -230,7 +226,7 @@ update msg model =
                                 |> List.map
                                     (\user ->
                                         if user.sessionId == justSessionId then
-                                            { user | card = Just cardValue, hasVoted = True }
+                                            { user | card = Just cardValue, voteState = HiddenVote }
 
                                         else
                                             user
@@ -244,14 +240,20 @@ update msg model =
         Tick _ ->
             ( { model | clock = model.clock + 1 }, Cmd.none )
 
+        NoOp ->
+            ( model, Cmd.none )
+
         StartTime ->
             ( { model | shouldStartClock = True }, sendToBackend <| StartTimerAndVote (model.roomId |> Maybe.withDefault 1) )
 
         ResetTime ->
             ( { model | shouldStartClock = False, clock = 0 }, sendToBackend <| ResetTimerAndVote (model.roomId |> Maybe.withDefault 1) )
 
-        FlipCards ->
-            ( { model | shouldFlipCards = not <| model.shouldFlipCards }, sendToBackend <| InitiateFlipCards (model.roomId |> Maybe.withDefault 1) )
+        ShowCards ->
+            ( model, sendToBackend <| InitiateShowCards (model.roomId |> Maybe.withDefault 1) )
+
+        HideCards ->
+            ( model, sendToBackend <| InitiateHideCards (model.roomId |> Maybe.withDefault 1) )
 
         ClearVotes ->
             ( { model | shouldFlipCards = False, card = Nothing }, sendToBackend <| ClearAllUserVotes (model.roomId |> Maybe.withDefault 1) )
@@ -327,7 +329,7 @@ updateFromBackend msg model =
         UpdateRoom { sessionId, name } ->
             let
                 updatedAnnouncement =
-                    model.announcement ++ [ Just <| name ++ " has joined !" ]
+                    model.announcement ++ [ name ++ " has joined !" ]
             in
             ( { model | users = { defaultUser | sessionId = sessionId, name = name } :: model.users, announcement = updatedAnnouncement }
             , Process.sleep 4000
@@ -341,9 +343,12 @@ updateFromBackend msg model =
             let
                 updatedAnnouncement =
                     model.announcement
-                        |> (++) [ Just "Start voting !" ]
+                        |> (++) [ "Start voting !" ]
             in
-            ( { model | shouldStartClock = True, announcement = updatedAnnouncement }, Cmd.none )
+            ( { model | shouldStartClock = True, announcement = updatedAnnouncement }
+            , Process.sleep 4000
+                |> Task.perform (\_ -> HideNotification)
+            )
 
         UsersResetTimer ->
             ( { model | shouldStartClock = False, clock = 0, announcement = [] }, Cmd.none )
@@ -351,8 +356,8 @@ updateFromBackend msg model =
         UpdateCards users ->
             ( { model | users = users }, Cmd.none )
 
-        UsersFlipCards ->
-            ( { model | shouldFlipCards = not <| model.shouldFlipCards }, Cmd.none )
+        UsersFlipCards users ->
+            ( { model | users = users, shouldFlipCards = not <| model.shouldFlipCards }, Cmd.none )
 
         UsersCardReset users ->
             ( { model | users = users, shouldFlipCards = False, card = Nothing }, Cmd.none )
@@ -415,10 +420,12 @@ view model =
                                         ]
                                     ]
                                     [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ You're about to become an admin ]" ]
-                                    , viewInput StoreName
-                                        (model.name
-                                            |> Maybe.withDefault ""
-                                        )
+                                    , inputStyle
+                                        |> withError model.error
+                                        |> viewInput StoreName
+                                            (model.name
+                                                |> Maybe.withDefault ""
+                                            )
                                     ]
                                 , Html.div
                                     [ Attr.css
@@ -472,10 +479,12 @@ view model =
                                     ]
                                     [ Html.p [ Attr.css [ Tw.mt_0, Tw.mb_4, Tw.text_2xl ] ] [ text "Add your name" ]
                                     , Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ After that we will redirect you to team's room ]" ]
-                                    , viewInput StoreName
-                                        (model.name
-                                            |> Maybe.withDefault ""
-                                        )
+                                    , inputStyle
+                                        |> withError model.error
+                                        |> viewInput StoreName
+                                            (model.name
+                                                |> Maybe.withDefault ""
+                                            )
                                     ]
                                 , Html.div
                                     [ Attr.css
@@ -526,10 +535,12 @@ view model =
                                         ]
                                     ]
                                     [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ Place where you can vote for stories ]" ]
-                                    , viewInput StoreRoom
-                                        (model.roomName
-                                            |> Maybe.withDefault ""
-                                        )
+                                    , inputStyle
+                                        |> withError model.error
+                                        |> viewInput StoreRoom
+                                            (model.roomName
+                                                |> Maybe.withDefault ""
+                                            )
                                     ]
                                 , Html.div
                                     [ Attr.css
@@ -598,10 +609,12 @@ view model =
                                                     )
                                             )
                                         ]
-                                    , viewInput StoreStory
-                                        (model.story
-                                            |> Maybe.withDefault ""
-                                        )
+                                    , inputStyle
+                                        |> withError model.error
+                                        |> viewInput StoreStory
+                                            (model.story
+                                                |> Maybe.withDefault ""
+                                            )
                                     ]
                                 , Html.div
                                     [ Attr.css
@@ -726,10 +739,14 @@ view model =
                                                                     ]
                                                                 ]
                                                                 [ viewButtonWithMsg ResetTime "Reset timer"
-                                                                , viewButtonWithMsg FlipCards "Flip cards"
+                                                                , if model.shouldFlipCards then
+                                                                    viewButtonWithMsg HideCards "Hide Votes "
+
+                                                                  else
+                                                                    viewButtonWithMsg ShowCards "Show votes"
                                                                 , viewButtonWithMsg ClearVotes "Clear votes"
                                                                 , viewButtonWithMsg SkipStory "Skip story"
-                                                                , if model.users |> List.all (\user -> user.hasVoted) then
+                                                                , if model.users |> List.all (\user -> not <| user.voteState == NotVoted) then
                                                                     viewButtonWithMsg FinishVoting "Finish Voting"
 
                                                                   else
@@ -815,72 +832,18 @@ view model =
                                             , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.flex_col, Tw.text_2xl, Tw.gap_4 ] ]
                                                 (model.users
                                                     |> List.map
-                                                        (\{ isAdmin, name, card, hasVoted } ->
+                                                        (\{ isAdmin, name, card, voteState } ->
                                                             if isAdmin then
                                                                 Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.text_color Tw.blue_400, Tw.break_all ] ]
-                                                                    [ Html.div []
-                                                                        [ case model.credentials of
-                                                                            Admin ->
-                                                                                case card of
-                                                                                    Just crd ->
-                                                                                        Html.span [ Attr.css [] ] [ crd |> String.fromFloat |> text ]
-
-                                                                                    Nothing ->
-                                                                                        text ""
-
-                                                                            Employee ->
-                                                                                if model.shouldFlipCards then
-                                                                                    case card of
-                                                                                        Just crd ->
-                                                                                            Html.span [ Attr.css [] ] [ crd |> String.fromFloat |> text ]
-
-                                                                                        Nothing ->
-                                                                                            text ""
-
-                                                                                else
-                                                                                    text ""
-                                                                        ]
-                                                                    , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
-                                                                    ]
+                                                                    (viewNameCardGroup
+                                                                        { voteState = voteState, card = card, name = name }
+                                                                    )
 
                                                             else
-                                                                case model.credentials of
-                                                                    Admin ->
-                                                                        Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.break_all ] ]
-                                                                            [ Html.div []
-                                                                                [ case card of
-                                                                                    Just crd ->
-                                                                                        Html.span [ Attr.css [] ] [ crd |> String.fromFloat |> text ]
-
-                                                                                    Nothing ->
-                                                                                        text ""
-                                                                                ]
-                                                                            , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
-                                                                            ]
-
-                                                                    Employee ->
-                                                                        Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.break_all ] ]
-                                                                            [ Html.div []
-                                                                                [ if hasVoted && not model.shouldFlipCards then
-                                                                                    Html.span [ Attr.css [ Tw.m_0 ] ] [ 0xA936 |> Char.fromCode |> String.fromChar |> text ]
-
-                                                                                  else
-                                                                                    text ""
-                                                                                ]
-                                                                            , if model.shouldFlipCards then
-                                                                                case card of
-                                                                                    Just crd ->
-                                                                                        Html.p [ Attr.css [ Tw.m_0 ] ]
-                                                                                            [ Html.span [] [ crd |> String.fromFloat |> text ]
-                                                                                            ]
-
-                                                                                    Nothing ->
-                                                                                        text ""
-
-                                                                              else
-                                                                                text ""
-                                                                            , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
-                                                                            ]
+                                                                Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.break_all ] ]
+                                                                    (viewNameCardGroup
+                                                                        { voteState = voteState, card = card, name = name }
+                                                                    )
                                                         )
                                                 )
                                             ]
@@ -921,6 +884,28 @@ view model =
     }
 
 
+viewNameCardGroup : { voteState : VoteState, card : Maybe Float, name : ValidTextField } -> List (Html FrontendMsg)
+viewNameCardGroup { voteState, card, name } =
+    [ Html.div []
+        [ case voteState of
+            HiddenVote ->
+                Html.span [ Attr.css [ Tw.m_0 ] ] [ 0xA936 |> Char.fromCode |> String.fromChar |> text ]
+
+            NotVoted ->
+                text ""
+
+            Voted ->
+                case card of
+                    Just crd ->
+                        Html.span [ Attr.css [] ] [ crd |> String.fromFloat |> text ]
+
+                    Nothing ->
+                        text ""
+        ]
+    , Html.p [ Attr.css [ Tw.m_0 ] ] [ text name ]
+    ]
+
+
 viewCards : FrontendModel -> Html FrontendMsg
 viewCards model =
     Html.div []
@@ -956,7 +941,15 @@ viewCards model =
                                     [ Tw.w_1over4 ]
                                 ]
                             , if model.shouldStartClock then
-                                onClick (ChooseCard card.value card.name)
+                                let
+                                    crd =
+                                        model.card |> Maybe.withDefault "0"
+                                in
+                                if crd /= card.name then
+                                    onClick (ChooseCard card.value card.name)
+
+                                else
+                                    onClick NoOp
 
                               else
                                 Attr.css []
@@ -1179,20 +1172,30 @@ inputStyle =
     ]
 
 
-viewButtonWithMsg : FrontendMsg -> String -> Html FrontendMsg
-viewButtonWithMsg msg label =
-    Html.button [ Attr.css buttonStyle, onClick msg ] [ text label ]
+withError : InvalidTextFiled -> List Css.Style -> List Css.Style
+withError maybeError basicStyle =
+    case maybeError of
+        Just _ ->
+            basicStyle ++ [ Tw.bg_color Tw.red_200 ]
+
+        Nothing ->
+            basicStyle
 
 
-viewInput : (String -> FrontendMsg) -> String -> Html FrontendMsg
-viewInput toMsg value =
+viewInput : (String -> FrontendMsg) -> String -> List Css.Style -> Html FrontendMsg
+viewInput toMsg value styles =
     Html.input
         [ Attr.type_ "text"
-        , Attr.css inputStyle
+        , Attr.css styles
         , onInput toMsg
         , Attr.value value
         ]
         []
+
+
+viewButtonWithMsg : FrontendMsg -> String -> Html FrontendMsg
+viewButtonWithMsg msg label =
+    Html.button [ Attr.css buttonStyle, onClick msg ] [ text label ]
 
 
 viewNotifications : Model -> Html FrontendMsg
@@ -1256,7 +1259,7 @@ viewNotifications { error, announcement } =
             ]
             (announcement
                 |> List.map
-                    (\maybeInfo ->
+                    (\info ->
                         Html.li
                             [ Attr.css
                                 [ Tw.p_2
@@ -1297,12 +1300,7 @@ viewNotifications { error, announcement } =
                                         []
                                     ]
                                 ]
-                            , case maybeInfo of
-                                Just str ->
-                                    text str
-
-                                Nothing ->
-                                    text ""
+                            , text info
                             ]
                     )
             )

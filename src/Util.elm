@@ -257,7 +257,7 @@ colorConfig =
 cards : List { name : String, value : Float }
 cards =
     [ { name = "0", value = 0 }
-    , { name = "1/2", value = 1.5 }
+    , { name = "1/2", value = 0.5 }
     , { name = "1", value = 1 }
     , { name = "2", value = 2 }
     , { name = "3", value = 3 }

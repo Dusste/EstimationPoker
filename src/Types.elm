@@ -28,13 +28,29 @@ type alias FrontendModel =
     , shouldShowCharts : Bool
     , card : Maybe String
     , shouldStartChartAnimation : Bool
-    , announcement : List (Maybe String)
+    , announcement : List String
     }
 
 
 type alias BackendModel =
     { rooms : Dict Index Room
     , index : Int
+    }
+
+
+type alias Room =
+    { users : List User
+    , roomName : ValidTextField
+    , stories : List ValidTextField
+    }
+
+
+type alias User =
+    { name : ValidTextField
+    , isAdmin : Bool
+    , card : Maybe Float
+    , sessionId : SessionId
+    , voteState : VoteState
     }
 
 
@@ -70,31 +86,21 @@ type alias Index =
     Int
 
 
+type VoteState
+    = NotVoted
+    | HiddenVote
+    | Voted
+
+
 type Credentials
     = Admin
     | Employee
-
-
-type alias Room =
-    { users : List User
-    , roomName : ValidTextField
-    , stories : List ValidTextField
-    }
 
 
 type alias ChartsData =
     { uniqueVoteValue : Maybe Float
     , percentage : Float
     , numOfVoters : Float
-    }
-
-
-type alias User =
-    { name : ValidTextField
-    , isAdmin : Bool
-    , card : Maybe Float
-    , sessionId : SessionId
-    , hasVoted : Bool
     }
 
 
@@ -112,7 +118,7 @@ defaultUser =
     , isAdmin = False
     , card = Nothing
     , sessionId = "Invalid session id"
-    , hasVoted = False
+    , voteState = NotVoted
     }
 
 
@@ -130,7 +136,8 @@ type FrontendMsg
     | Tick Time.Posix
     | StartTime
     | ResetTime
-    | FlipCards
+    | ShowCards
+    | HideCards
     | ClearVotes
     | FinishVoting
     | NextStory
@@ -139,6 +146,7 @@ type FrontendMsg
     | ShowDonutChart
     | ShowBarChart
     | HideNotification
+    | NoOp
 
 
 type Chart
@@ -155,7 +163,8 @@ type ToBackend
     | SendCard Float Int
     | StartTimerAndVote Int
     | ResetTimerAndVote Int
-    | InitiateFlipCards Int
+    | InitiateShowCards Int
+    | InitiateHideCards Int
     | ClearAllUserVotes Int
     | SignalShowCharts Int
     | SignalSkipStory Int
@@ -176,7 +185,7 @@ type ToFrontend
     | UsersStartTimer
     | UsersResetTimer
     | UpdateCards (List User)
-    | UsersFlipCards
+    | UsersFlipCards (List User)
     | UsersCardReset (List User)
     | SkipStoryAndExposeCharts (List User)
     | ExposeCharts
