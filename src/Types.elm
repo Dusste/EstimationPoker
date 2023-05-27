@@ -18,7 +18,7 @@ type alias FrontendModel =
     , story : Maybe String
     , stories : List String
     , error : InvalidTextFiled
-    , roomId : Maybe Int -- index in BE model
+    , roomId : Maybe RoomParam
     , users : List User
     , sessionId : Maybe SessionId
     , clock : Int
@@ -34,7 +34,7 @@ type alias FrontendModel =
 
 type alias BackendModel =
     { rooms : Dict Index Room
-    , index : Int
+    , index : Index
     }
 
 
@@ -155,21 +155,21 @@ type Chart
 
 
 type ToBackend
-    = SendStoryToBE (List ValidTextField) Int
-    | SendRoomNameToBE ValidTextField Int
+    = SendStoryToBE (List ValidTextField) RoomParam
+    | SendRoomNameToBE ValidTextField RoomParam
     | SendAdminNameToBE ValidTextField
-    | SendUserNameToBE ValidTextField Int
+    | SendUserNameToBE ValidTextField RoomParam
     | ReqRoomRoute RoomParam Bool
-    | SendCard Float Int
-    | StartTimerAndVote Int
-    | ResetTimerAndVote Int
-    | InitiateShowCards Int
-    | InitiateHideCards Int
-    | ClearAllUserVotes Int
-    | SignalShowCharts Int
-    | SignalSkipStory Int
-    | SignalUpdateStories (List ValidTextField) Int
-    | SignalChartAnimation Int
+    | SendCard Float RoomParam
+    | StartTimerAndVote RoomParam
+    | ResetTimerAndVote RoomParam
+    | InitiateShowCards RoomParam
+    | InitiateHideCards RoomParam
+    | ClearAllUserVotes RoomParam
+    | SignalShowCharts RoomParam
+    | SignalSkipStory RoomParam
+    | SignalUpdateStories (List ValidTextField) RoomParam
+    | SignalChartAnimation RoomParam
 
 
 type BackendMsg
@@ -178,9 +178,9 @@ type BackendMsg
 
 
 type ToFrontend
-    = SendRoomIdToFE Int
-    | ResRoomRoute { status : Status, roomName : String, sessionId : SessionId, users : List User, stories : List ValidTextField }
-    | UpdateRoom { sessionId : SessionId, name : String }
+    = SendRoomIdToFE RoomParam
+    | ResRoomRoute { status : Status, roomName : ValidTextField, sessionId : SessionId, users : List User, stories : List ValidTextField }
+    | UpdateRoom { sessionId : SessionId, name : ValidTextField }
     | SupplyBEData { users : List User, stories : List ValidTextField }
     | UsersStartTimer
     | UsersResetTimer
