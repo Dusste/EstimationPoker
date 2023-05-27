@@ -105,7 +105,7 @@ updateFromFrontend sessionId clientId msg model =
             in
             ( { model | rooms = updateRooms }, Cmd.none )
 
-        ReqRoomRoute roomId shouldNavigateToEnd ->
+        ReqRoomRoute roomId credentials ->
             let
                 maybeRoom =
                     model.rooms |> Dict.get roomId
@@ -118,11 +118,12 @@ updateFromFrontend sessionId clientId msg model =
 
                         fromBEtoFEmodel =
                             { status =
-                                if shouldNavigateToEnd then
-                                    PokerStep
+                                case credentials of
+                                    Admin ->
+                                        PokerStep
 
-                                else
-                                    EnterNameStep
+                                    Employee ->
+                                        EnterNameStep
                             , roomName = roomName
                             , sessionId = sessionId
                             , users = users

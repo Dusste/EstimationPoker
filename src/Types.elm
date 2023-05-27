@@ -159,7 +159,7 @@ type ToBackend
     | SendRoomNameToBE ValidTextField RoomParam
     | SendAdminNameToBE ValidTextField
     | SendUserNameToBE ValidTextField RoomParam
-    | ReqRoomRoute RoomParam Bool
+    | ReqRoomRoute RoomParam Credentials
     | SendCard Float RoomParam
     | StartTimerAndVote RoomParam
     | ResetTimerAndVote RoomParam

@@ -104,7 +104,7 @@ init url key =
                     initialModel url key
             in
             ( { mdl | status = EnterNameStep, roomId = Just roomId, credentials = Employee }
-            , sendToBackend <| ReqRoomRoute roomId False
+            , sendToBackend <| ReqRoomRoute roomId Employee
             )
 
         RoomRoute _ ->
@@ -136,10 +136,10 @@ update msg model =
                     ( initialModel url model.key, Cmd.none )
 
                 InviteRoute roomId ->
-                    ( model, sendToBackend <| ReqRoomRoute roomId False )
+                    ( model, sendToBackend <| ReqRoomRoute roomId Employee )
 
                 RoomRoute roomId ->
-                    ( { model | status = PokerStep }, sendToBackend <| ReqRoomRoute roomId True )
+                    ( { model | status = PokerStep }, sendToBackend <| ReqRoomRoute roomId Admin )
 
                 NotFound ->
                     ( model, Cmd.none )
