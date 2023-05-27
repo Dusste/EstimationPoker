@@ -3,16 +3,99 @@ module Types exposing (..)
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
+import Html.Styled as Html exposing (Html, text)
 import Lamdera exposing (ClientId, SessionId)
 import Time
 import Url exposing (Url)
+
+
+type Step status
+    = Step Status
+
+
+type Initial
+    = Initial
+
+
+type Transition
+    = Transition
+
+
+type Done
+    = Done
+
+
+initiateAdminStep : (Step Transition -> Html FrontendMsg) -> Step Initial -> Html FrontendMsg
+initiateAdminStep f (Step status) =
+    if status == InitalStatus then
+        -- Step EnterAdminNameStep
+        f (Step EnterAdminNameStep)
+
+    else
+        f (Step EnterAdminNameStep)
+
+
+
+-- Step Step404
+
+
+initiateUserStep : Step Initial -> Step Status
+initiateUserStep (Step status) =
+    if status == InitalStatus then
+        Step EnterNameStep
+
+    else
+        Step Step404
+
+
+toCreateRoomStep : Step Transition -> Step Status
+toCreateRoomStep (Step status) =
+    if status == EnterAdminNameStep then
+        Step CreateRoomStep
+
+    else
+        Step Step404
+
+
+toCreateStoryStep : Step Transition -> Step Status
+toCreateStoryStep (Step status) =
+    if status == CreateRoomStep then
+        Step CreateStoryStep
+
+    else
+        Step Step404
+
+
+toPokerStep : Step Done -> Step Status
+toPokerStep (Step status) =
+    if status == CreateStoryStep then
+        Step PokerStep
+
+    else
+        Step Step404
+
+
+
+-- case status of
+--     Initial ->
+--         Step EnterAdminNameStep
+--     Initial ->
+--         Step EnterNameStep
+--     EnterStepName ->
+--         Step CreateRoomStep
+--     CreateRoomStep ->
+--         Step CreateStoryStep
+--     CreateStoryStep ->
+--         Step PokerStep
+--     Step404 ->
+--         Step Step404
 
 
 type alias FrontendModel =
     { key : Key
     , url : String
     , credentials : Credentials
-    , status : Status
+    , status : Step Status
     , name : Maybe String
     , roomName : Maybe String
     , story : Maybe String
@@ -74,7 +157,8 @@ type alias ValidTextField =
 
 
 type Status
-    = EnterNameStep
+    = InitalStatus
+    | EnterNameStep
     | EnterAdminNameStep
     | CreateRoomStep
     | CreateStoryStep

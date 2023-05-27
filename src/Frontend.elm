@@ -62,7 +62,7 @@ initialModel : Url -> Nav.Key -> Model
 initialModel url key =
     { key = key
     , url = Util.getBaseUrl url
-    , status = EnterAdminNameStep
+    , status = initiateAdminStep (Step InitiaStatus)
     , name = Nothing
     , roomName = Nothing
     , story = Nothing
@@ -383,8 +383,8 @@ view model =
             Html.div [ Attr.css [ Tw.flex, Tw.h_full, Tw.bg_color Tw.black, Tw.h_screen ] ]
                 [ Html.div [ Attr.css [ Tw.h_full, Tw.w_full, Tw.flex, Tw.flex_col ] ]
                     [ viewNotifications model
-                    , case model.status of
-                        EnterAdminNameStep ->
+                    , model.status
+                        |> initiateAdminStep (\adminStep ->
                             Html.div
                                 [ Attr.css
                                     [ Tw.flex
@@ -439,7 +439,7 @@ view model =
                                     ]
                                     [ viewButtonWithMsg (SendName Admin) "Save" ]
                                 ]
-
+                        )
                         EnterNameStep ->
                             Html.div
                                 [ Attr.css
