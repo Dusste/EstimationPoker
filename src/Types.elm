@@ -146,6 +146,7 @@ type FrontendMsg
     | ShowDonutChart
     | ShowBarChart
     | HideNotification
+    | CopyRoomUrl
     | NoOp
 
 

@@ -9,6 +9,7 @@ import Html.Styled as Html exposing (Html, text)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events exposing (onClick, onInput)
 import Lamdera exposing (sendToBackend)
+import Ports
 import Process
 import Svg.Styled exposing (g, path, svg)
 import Svg.Styled.Attributes as SvgAttr
@@ -266,6 +267,9 @@ update msg model =
                 ]
             )
 
+        CopyRoomUrl ->
+            ( model, Ports.copyUrlToClipboard <| model.url ++ "invite/" ++ (model.roomId |> Maybe.withDefault 1 |> String.fromInt) )
+
         SkipStory ->
             ( { model | shouldStartClock = False, clock = 0, card = Nothing, shouldFlipCards = False, shouldShowCharts = False }, sendToBackend <| SignalSkipStory (model.roomId |> Maybe.withDefault 1) )
 
@@ -436,7 +440,7 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ viewButtonWithMsg (SendName Admin) "Save" ]
+                                    [ buttonStyle |> viewButtonWithMsg (SendName Admin) "Save" ]
                                 ]
 
                         EnterNameStep ->
@@ -495,7 +499,7 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ viewButtonWithMsg (SendName Employee) "Save" ]
+                                    [ buttonStyle |> viewButtonWithMsg (SendName Employee) "Save" ]
                                 ]
 
                         CreateRoomStep ->
@@ -551,7 +555,7 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ viewButtonWithMsg SendRoom "Create" ]
+                                    [ buttonStyle |> viewButtonWithMsg SendRoom "Create" ]
                                 ]
 
                         CreateStoryStep ->
@@ -626,8 +630,8 @@ view model =
                                         , Tw.justify_center
                                         ]
                                     ]
-                                    [ viewButtonWithMsg SendStory "Add New"
-                                    , viewButtonWithMsg SaveStory "Save"
+                                    [ buttonStyle |> viewButtonWithMsg SendStory "Add New"
+                                    , buttonStyle |> viewButtonWithMsg SaveStory "Save"
                                     ]
                                 ]
 
@@ -737,23 +741,23 @@ view model =
                                                                     , Bp.lg [ Tw.justify_start ]
                                                                     ]
                                                                 ]
-                                                                [ viewButtonWithMsg ResetTime "Reset timer"
+                                                                [ buttonStyle |> viewButtonWithMsg ResetTime "Reset timer"
                                                                 , if model.shouldFlipCards then
-                                                                    viewButtonWithMsg HideCards "Hide Votes "
+                                                                    buttonStyle |> viewButtonWithMsg HideCards "Hide Votes "
 
                                                                   else
-                                                                    viewButtonWithMsg ShowCards "Show votes"
-                                                                , viewButtonWithMsg ClearVotes "Clear votes"
-                                                                , viewButtonWithMsg SkipStory "Skip story"
+                                                                    buttonStyle |> viewButtonWithMsg ShowCards "Show votes"
+                                                                , buttonStyle |> viewButtonWithMsg ClearVotes "Clear votes"
+                                                                , buttonStyle |> viewButtonWithMsg SkipStory "Skip story"
                                                                 , if model.users |> List.all (\user -> not <| user.voteState == NotVoted) then
-                                                                    viewButtonWithMsg FinishVoting "Finish Voting"
+                                                                    buttonStyle |> viewButtonWithMsg FinishVoting "Finish Voting"
 
                                                                   else
                                                                     text ""
                                                                 ]
 
                                                         else
-                                                            viewButtonWithMsg StartTime "Start timer"
+                                                            buttonStyle |> viewButtonWithMsg StartTime "Start timer"
 
                                                       else
                                                         text ""
@@ -801,6 +805,7 @@ view model =
                                                     , Tw.w_full
                                                     , Tw.form_input
                                                     , Tw.rounded_md
+                                                    , Tw.rounded_b_none
                                                     , Tw.border_0
                                                     , Tw.py_2
                                                     , Tw.pl_3
@@ -826,6 +831,7 @@ view model =
                                                 ]
                                                 []
                                             ]
+                                        , buttonStyle |> withReadmeInput |> viewButtonWithMsg CopyRoomUrl "Copy URL"
                                         , Html.div [ Attr.css [ Tw.mt_6 ] ]
                                             [ Html.h4 [ Attr.css [ Tw.text_3xl, Tw.m_0, Tw.mb_4 ] ] [ text "Team:" ]
                                             , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.flex_col, Tw.text_2xl, Tw.gap_4 ] ]
@@ -959,12 +965,14 @@ viewCards model =
                                             [ Tw.bg_color Tw.white
                                             , Tw.border_color Tw.white
                                             , Tw.text_color Tw.black
-                                            , Tw.rounded
                                             , Tw.font_bold
                                             , Tw.text_7xl
                                             , Tw.p_0
                                             , Css.hover
                                                 [ Tw.p_0
+                                                ]
+                                            , Bp.lg
+                                                [ Tw.rounded
                                                 ]
                                             ]
 
@@ -975,10 +983,12 @@ viewCards model =
                                                 [ Tw.bg_color Tw.white
                                                 , Tw.border_color Tw.white
                                                 , Tw.text_color Tw.black
-                                                , Tw.rounded
                                                 , Tw.font_bold
                                                 , Tw.text_7xl
                                                 , Tw.p_0
+                                                , Bp.lg
+                                                    [ Tw.rounded
+                                                    ]
                                                 ]
                                             ]
 
@@ -998,10 +1008,12 @@ viewCards model =
                                             [ Tw.bg_color Tw.white
                                             , Tw.border_color Tw.white
                                             , Tw.text_color Tw.black
-                                            , Tw.rounded
                                             , Tw.font_bold
                                             , Tw.text_7xl
                                             , Tw.p_0
+                                            , Bp.lg
+                                                [ Tw.rounded
+                                                ]
                                             ]
                                         ]
                             ]
@@ -1109,7 +1121,7 @@ viewCharts model =
             Nothing ->
                 Html.h4 [] [ text "This story was skipped" ]
         , if model.shouldShowCharts && List.length model.stories > 1 && model.credentials == Admin then
-            viewButtonWithMsg NextStory "Next Story"
+            buttonStyle |> viewButtonWithMsg NextStory "Next Story"
 
           else
             text ""
@@ -1171,6 +1183,11 @@ inputStyle =
     ]
 
 
+withReadmeInput : List Css.Style -> List Css.Style
+withReadmeInput basicStyle =
+    basicStyle ++ [ Tw.rounded_t_none ]
+
+
 withError : InvalidTextFiled -> List Css.Style -> List Css.Style
 withError maybeError basicStyle =
     case maybeError of
@@ -1192,9 +1209,9 @@ viewInput toMsg value styles =
         []
 
 
-viewButtonWithMsg : FrontendMsg -> String -> Html FrontendMsg
-viewButtonWithMsg msg label =
-    Html.button [ Attr.css buttonStyle, onClick msg ] [ text label ]
+viewButtonWithMsg : FrontendMsg -> String -> List Css.Style -> Html FrontendMsg
+viewButtonWithMsg msg label styles =
+    Html.button [ Attr.css styles, onClick msg ] [ text label ]
 
 
 viewNotifications : Model -> Html FrontendMsg
