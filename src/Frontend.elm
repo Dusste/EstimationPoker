@@ -152,8 +152,7 @@ update msg model =
                 Ok validInput ->
                     case cred of
                         Admin ->
-                            -- TODO fix sessionId not use maybe
-                            ( { model | status = CreateRoomStep, error = Nothing, name = Nothing, users = { defaultUser | sessionId = model.sessionId |> Maybe.withDefault "123", name = validInput, isAdmin = True } :: model.users }
+                            ( { model | status = CreateRoomStep, error = Nothing, name = Nothing, users = { defaultUser | name = validInput, isAdmin = True } :: model.users }
                             , sendToBackend <| SendAdminNameToBE validInput
                             )
 
