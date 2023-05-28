@@ -3,8 +3,6 @@ port copyUrlToClipboard : String -> Cmd msg
 */
 
 exports.init = async function (app) {
-  console.log("Hello! Starting copyTextToClipboard");
-
   app.ports.copyUrlToClipboard.subscribe(function (text) {
     console.log("Text", text);
     copyTextToClipboard(text);

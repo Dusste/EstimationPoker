@@ -5,7 +5,7 @@ import Browser.Navigation as Nav
 import Css
 import Css.Global
 import Donut
-import Html.Styled as Html exposing (Html, text)
+import Html.Styled as Html exposing (Attribute, Html, text)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events exposing (onClick, onInput)
 import Lamdera exposing (sendToBackend)
@@ -209,13 +209,43 @@ update msg model =
                     )
 
         StoreName str ->
-            ( { model | name = Just str, error = Nothing }, Cmd.none )
+            ( { model
+                | name =
+                    if str /= "" then
+                        Just str
+
+                    else
+                        Nothing
+                , error = Nothing
+              }
+            , Cmd.none
+            )
 
         StoreRoom str ->
-            ( { model | roomName = Just str, error = Nothing }, Cmd.none )
+            ( { model
+                | roomName =
+                    if str /= "" then
+                        Just str
+
+                    else
+                        Nothing
+                , error = Nothing
+              }
+            , Cmd.none
+            )
 
         StoreStory str ->
-            ( { model | story = Just str, error = Nothing }, Cmd.none )
+            ( { model
+                | story =
+                    if str /= "" then
+                        Just str
+
+                    else
+                        Nothing
+                , error = Nothing
+              }
+            , Cmd.none
+            )
 
         ChooseCard cardValue cardName ->
             case model.sessionId of
@@ -357,7 +387,7 @@ updateFromBackend msg model =
             ( { model | shouldStartClock = False, clock = 0, announcement = [] }, Cmd.none )
 
         UpdateCards users ->
-            ( { model | users = users }, Cmd.none )
+            ( { model | users = users, shouldFlipCards = False }, Cmd.none )
 
         UsersFlipCards users ->
             ( { model | users = users, shouldFlipCards = not <| model.shouldFlipCards }, Cmd.none )
@@ -425,6 +455,11 @@ view model =
                                     [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ You're about to become an admin ]" ]
                                     , inputStyle
                                         |> withError model.error
+                                        |> withSendOnEnter
+                                            (Util.onEnterWithCred
+                                                Admin
+                                                SendName
+                                            )
                                         |> viewInput StoreName
                                             (model.name
                                                 |> Maybe.withDefault ""
@@ -484,6 +519,11 @@ view model =
                                     , Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ After that we will redirect you to team's room ]" ]
                                     , inputStyle
                                         |> withError model.error
+                                        |> withSendOnEnter
+                                            (Util.onEnterWithCred
+                                                Employee
+                                                SendName
+                                            )
                                         |> viewInput StoreName
                                             (model.name
                                                 |> Maybe.withDefault ""
@@ -540,6 +580,10 @@ view model =
                                     [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ Place where you can vote for stories ]" ]
                                     , inputStyle
                                         |> withError model.error
+                                        |> withSendOnEnter
+                                            (Util.onEnter
+                                                SendRoom
+                                            )
                                         |> viewInput StoreRoom
                                             (model.roomName
                                                 |> Maybe.withDefault ""
@@ -614,6 +658,10 @@ view model =
                                         ]
                                     , inputStyle
                                         |> withError model.error
+                                        |> withSendOnEnter
+                                            (Util.onEnter
+                                                SendStory
+                                            )
                                         |> viewInput StoreStory
                                             (model.story
                                                 |> Maybe.withDefault ""
@@ -642,10 +690,11 @@ view model =
                                     , Tw.flex
                                     , Tw.flex_col
                                     , Tw.text_color Tw.white
-                                    , Tw.max_w_7xl
+                                    , Tw.w_full
                                     , Tw.m_auto
                                     , Bp.lg
                                         [ Tw.flex_row
+                                        , Tw.w_5over6
                                         ]
                                     ]
                                 ]
@@ -656,7 +705,7 @@ view model =
                                         , Tw.flex_1
                                         , Tw.py_6
                                         , Bp.lg
-                                            [ Tw.pr_4
+                                            [ Tw.pr_10
                                             ]
                                         ]
                                     ]
@@ -674,39 +723,44 @@ view model =
                                             ]
                                         ]
                                         [ Html.h2 [ Attr.css [ Tw.m_0, Tw.break_all ] ] [ model.roomName |> Maybe.withDefault "Room name is not available" |> text ]
-                                        , if model.shouldShowCharts then
-                                            Html.div [ Attr.css [ Tw.flex, Tw.gap_2, Tw.text_xl ] ]
-                                                [ Html.span
-                                                    [ case model.chart of
-                                                        Bar ->
-                                                            Attr.css [ Tw.text_color Tw.gray_400 ]
+                                        , case model.card of
+                                            Just _ ->
+                                                if model.shouldShowCharts then
+                                                    Html.div [ Attr.css [ Tw.flex, Tw.gap_2, Tw.text_xl ] ]
+                                                        [ Html.span
+                                                            [ case model.chart of
+                                                                Bar ->
+                                                                    Attr.css [ Tw.text_color Tw.gray_400 ]
 
-                                                        Donut ->
-                                                            Attr.css
-                                                                [ Tw.text_color Tw.white
-                                                                , Tw.cursor_pointer
-                                                                ]
-                                                    , onClick ShowBarChart
-                                                    ]
-                                                    [ text "Bar Chart" ]
-                                                , Html.span [] [ text " | " ]
-                                                , Html.span
-                                                    [ case model.chart of
-                                                        Donut ->
-                                                            Attr.css [ Tw.text_color Tw.gray_400 ]
+                                                                Donut ->
+                                                                    Attr.css
+                                                                        [ Tw.text_color Tw.white
+                                                                        , Tw.cursor_pointer
+                                                                        ]
+                                                            , onClick ShowBarChart
+                                                            ]
+                                                            [ text "Bar Chart" ]
+                                                        , Html.span [] [ text " | " ]
+                                                        , Html.span
+                                                            [ case model.chart of
+                                                                Donut ->
+                                                                    Attr.css [ Tw.text_color Tw.gray_400 ]
 
-                                                        Bar ->
-                                                            Attr.css
-                                                                [ Tw.text_color Tw.white
-                                                                , Tw.cursor_pointer
-                                                                ]
-                                                    , onClick ShowDonutChart
-                                                    ]
-                                                    [ text "Donut Chart" ]
-                                                ]
+                                                                Bar ->
+                                                                    Attr.css
+                                                                        [ Tw.text_color Tw.white
+                                                                        , Tw.cursor_pointer
+                                                                        ]
+                                                            , onClick ShowDonutChart
+                                                            ]
+                                                            [ text "Donut Chart" ]
+                                                        ]
 
-                                          else
-                                            text ""
+                                                else
+                                                    text ""
+
+                                            Nothing ->
+                                                text ""
                                         ]
                                     , Html.h4 [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400, Tw.font_extralight, Tw.break_all ] ] [ model.stories |> List.head |> Maybe.withDefault "There are no more stories" |> (++) "[ Current story ] " |> text ]
                                     , Html.div []
@@ -894,7 +948,7 @@ viewNameCardGroup { voteState, card, name } =
     [ Html.div []
         [ case voteState of
             HiddenVote ->
-                Html.span [ Attr.css [ Tw.m_0 ] ] [ 0xA936 |> Char.fromCode |> String.fromChar |> text ]
+                Html.span [ Attr.class "checkmark" ] []
 
             NotVoted ->
                 text ""
@@ -923,27 +977,39 @@ viewCards model =
                 , Tw.p_0
                 , Tw.m_0
                 , Tw.text_2xl
-                , Bp.md
-                    [ Tw.gap_10 ]
                 ]
             ]
             (Util.cards
                 |> List.map
                     (\card ->
                         Html.li
-                            [ Attr.css
+                            [ case model.card of
+                                Just crd ->
+                                    if crd == card.name then
+                                        Attr.class "selected"
+
+                                    else
+                                        Attr.css []
+
+                                Nothing ->
+                                    Attr.css []
+                            , Attr.css
                                 [ Tw.flex
                                 , Tw.border_color Tw.white
                                 , Tw.border_solid
                                 , Tw.border_2
                                 , Tw.justify_center
                                 , Tw.w_1over3
+                                , Tw.items_center
+                                , Tw.h_28
                                 , Tw.transition_all
                                 , Tw.duration_300
+                                , Tw.p_0
+                                , Tw.overflow_hidden
                                 , Tw.relative
                                 , Tw.cursor_pointer
                                 , Bp.md
-                                    [ Tw.w_1over4 ]
+                                    [ Tw.w_1over4, Tw.h_44 ]
                                 ]
                             , if model.shouldStartClock then
                                 let
@@ -966,13 +1032,13 @@ viewCards model =
                                             , Tw.border_color Tw.white
                                             , Tw.text_color Tw.black
                                             , Tw.font_bold
-                                            , Tw.text_7xl
+                                            , Tw.text_4xl
                                             , Tw.p_0
                                             , Css.hover
                                                 [ Tw.p_0
                                                 ]
                                             , Bp.lg
-                                                [ Tw.rounded
+                                                [ Tw.text_7xl
                                                 ]
                                             ]
 
@@ -986,9 +1052,6 @@ viewCards model =
                                                 , Tw.font_bold
                                                 , Tw.text_7xl
                                                 , Tw.p_0
-                                                , Bp.lg
-                                                    [ Tw.rounded
-                                                    ]
                                                 ]
                                             ]
 
@@ -1011,9 +1074,6 @@ viewCards model =
                                             , Tw.font_bold
                                             , Tw.text_7xl
                                             , Tw.p_0
-                                            , Bp.lg
-                                                [ Tw.rounded
-                                                ]
                                             ]
                                         ]
                             ]
@@ -1050,14 +1110,14 @@ viewCharts model =
                                     |> List.indexedMap
                                         (\int entry ->
                                             Html.li []
-                                                [ Html.div [ Attr.css [ Tw.flex, Tw.flex_col, Tw.gap_4, Tw.justify_end, Bp.lg [ Tw.flex_row ] ] ]
+                                                [ Html.div [ Attr.css [ Tw.flex, Tw.flex_col, Tw.gap_4, Bp.lg [ Tw.flex_row ] ] ]
                                                     [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4 ] ]
                                                         [ Html.span [ Attr.css [ Css.width (Css.px 31), Css.height (Css.px 31), Tw.bg_color (Util.getColor int), Tw.hidden, Bp.lg [ Tw.block ] ] ] []
                                                         , Html.span [ Attr.css [ Css.minWidth (Css.px 40) ] ] [ entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text ]
                                                         , Html.span [ Attr.css [ Css.minWidth (Css.px 57) ] ] [ text <| Util.roundFloat entry.percentage 2 ++ "%" ]
                                                         , Html.span [ Attr.css [ Css.minWidth (Css.px 123) ] ] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " " ++ pluralification entry.numOfVoters "player" ++ ")" ]
                                                         ]
-                                                    , Html.div [ Attr.css [ Tw.w_full, Tw.bg_color Tw.slate_900, Tw.h_8, Bp.lg [ Tw.w_72 ] ] ]
+                                                    , Html.div [ Attr.css [ Tw.w_full, Tw.bg_color Tw.slate_900, Tw.h_8 ] ]
                                                         [ Html.div
                                                             [ if model.shouldStartChartAnimation then
                                                                 Attr.class "transition-width"
@@ -1087,7 +1147,7 @@ viewCharts model =
                             donutModel =
                                 Donut.init model.users
                         in
-                        Html.div [ Attr.css [ Tw.flex, Tw.flex_1, Tw.flex_col, Bp.lg [ Tw.flex_row ] ] ]
+                        Html.div [ Attr.css [ Tw.flex, Tw.flex_1, Tw.flex_col, Bp.lg [ Tw.flex_row, Tw.h_96 ] ] ]
                             [ Html.div []
                                 [ Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.flex_col, Tw.p_0, Tw.m_0, Tw.text_2xl, Tw.mb_10, Tw.gap_4 ] ]
                                     (model.users
@@ -1198,14 +1258,20 @@ withError maybeError basicStyle =
             basicStyle
 
 
-viewInput : (String -> FrontendMsg) -> String -> List Css.Style -> Html FrontendMsg
-viewInput toMsg value styles =
+withSendOnEnter : Attribute FrontendMsg -> List Css.Style -> List (Attribute FrontendMsg)
+withSendOnEnter attr styles =
+    [ attr, Attr.css styles ]
+
+
+viewInput : (String -> FrontendMsg) -> String -> List (Attribute FrontendMsg) -> Html FrontendMsg
+viewInput toMsg value attrs =
     Html.input
-        [ Attr.type_ "text"
-        , Attr.css styles
-        , onInput toMsg
-        , Attr.value value
-        ]
+        ([ Attr.type_ "text"
+         , onInput toMsg
+         , Attr.value value
+         ]
+            ++ attrs
+        )
         []
 
 

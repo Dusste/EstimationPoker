@@ -1,7 +1,6 @@
 exports.init = async function init(app) {
   // https://ourcodeworld.com/articles/read/491/how-to-retrieve-images-from-the-clipboard-with-javascript-in-the-browser
 
-  console.log("Hello! Starting receive_image_Data_from_clipboard");
   /**
    * This handler retrieves the images from the clipboard as a blob and returns it in a callback.
    *
@@ -63,7 +62,6 @@ exports.init = async function init(app) {
 
           var mimeType = imageBlob.type;
           var imageSize = imageBlob.size;
-          console.log("ImageBlob:", mimeType, imageSize);
 
           // Creates a DOMString containing a URL representing the object given in the parameter
           // namely the original Blob
@@ -77,8 +75,6 @@ exports.init = async function init(app) {
             //                       imageSize: imageSize,
             //                       content: base64String}
             app.ports.copyUrlToClipboard.send(imageBlob);
-
-            console.log("image file sent");
           };
         }
       });

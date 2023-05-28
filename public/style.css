@@ -34,12 +34,74 @@ button {
     transform-origin: center;
 }
 
+.transitionToLeft {
+    animation: goleft 3s ease-in-out; 
+}
+
+.checkmark {
+    position: relative;
+}
+.checkmark:before {
+    content: '';
+    height: 2px;
+    width: 27px;
+    background: inherit;
+    position: absolute;
+    top: 15px;
+    background: #2dd4bf;
+    transform: rotate(-45deg);
+    left: -15px;
+}
+.checkmark:after {
+    content: '';
+    height: 2px;
+    width: 9px;
+    background: #2dd4bf;
+    position: absolute;
+    top: 20px;
+    transform: rotate(45deg);
+    left: -18.5px;
+}
+
+.selected {
+    position: relative;
+    overflow: hidden;
+    transition: width 400ms, ease-in-out;
+}
+
+.selected:before {
+    content: '';
+    border-left: 2px solid #2dd4bf;
+    border-top: 2px solid #2dd4bf;
+    position: absolute;
+    animation: fromleft 400ms ease-in-out; 
+    width: 60%;
+    height: 60%;
+    transition: all 400ms, ease-in-out;
+
+}
+.selected:after {
+    content: '';
+    border-right: 2px solid #2dd4bf;;
+    border-bottom: 2px solid #2dd4bf;;
+    position: absolute;
+    animation: fromright 400ms ease-in-out; 
+    width: 60%;
+    height: 60%;
+    transition: all 400ms, ease-in-out;
+}
+
 @keyframes goleft {
     0% { left: 10rem; visibility: visible;}
     80% { left: 80rem;visibility: visible; opacity: 0.5; }
     100% { left: 120rem; visibility: hidden;}
 }
 
-.transitionToLeft {
-    animation: goleft 3s ease-in-out; 
+@keyframes fromleft {
+    0% { width: 100%; height: 100%; transform: translate(-150%, -150%); border-color: #000;}
+    100% { width: 60%; height: 60%;transform: translate(0, 0); border-color: #000;}
+}
+@keyframes fromright {
+    0% { width: 100%; height: 100%;transform: translate(150%, 150%); border-color: #000;}
+    100% { width: 60%; height: 60%; transform: translate(0, 0); border-color: #000;}
 }

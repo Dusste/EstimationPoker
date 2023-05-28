@@ -1,6 +1,10 @@
 module Util exposing (..)
 
+import Browser.Events exposing (onKeyDown)
 import Dict exposing (Dict)
+import Html.Styled as Html exposing (Attribute)
+import Html.Styled.Events exposing (keyCode, on)
+import Json.Decode as Json
 import Tailwind.Theme as Tw
 import Types exposing (..)
 import Url exposing (Url)
@@ -291,3 +295,29 @@ roundFloat flt roundToNumberOfPlaces =
                     secondPart |> String.slice 0 roundToNumberOfPlaces
             in
             [ firstPart, slicedSecondPart ] |> String.join "."
+
+
+onEnterWithCred : Credentials -> (Credentials -> FrontendMsg) -> Attribute FrontendMsg
+onEnterWithCred cred msg =
+    let
+        isEnter code =
+            if code == 13 then
+                Json.succeed <| msg cred
+
+            else
+                Json.fail "not ENTER"
+    in
+    on "keydown" (Json.andThen isEnter keyCode)
+
+
+onEnter : FrontendMsg -> Attribute FrontendMsg
+onEnter msg =
+    let
+        isEnter code =
+            if code == 13 then
+                Json.succeed msg
+
+            else
+                Json.fail "not ENTER"
+    in
+    on "keydown" (Json.andThen isEnter keyCode)
