@@ -65,7 +65,7 @@ initialModel url key =
     , status = EnterAdminNameStep
     , name = Nothing
     , roomName = Nothing
-    , story = Nothing
+    , story = NoStory (Just "Input is empty")
     , error = Nothing
     , roomId = Nothing
     , stories = []
@@ -181,44 +181,8 @@ update msg model =
                     , sendToBackend <| SendRoomNameToBE validInput roomId
                     )
 
-        SendStory ->
-            case validateInput model.story of
-                Err errorMessage ->
-                    ( { model | error = errorMessage }, Cmd.none )
-
-                Ok validInput ->
-                    ( { model | error = Nothing, story = Nothing, stories = model.stories ++ [ validInput ] }, Cmd.none )
-
-        SaveStory ->
-            case validateInput model.story of
-                Err errorMessage ->
-                    ( { model | error = errorMessage }, Cmd.none )
-
-                Ok validInput ->
-                    let
-                        -- TODO think about something smarter
-                        roomId =
-                            model.roomId |> Maybe.withDefault 1
-
-                        updatedStories =
-                            model.stories ++ [ validInput ]
-                    in
-                    ( { model | error = Nothing, status = PokerStep, story = Nothing, stories = updatedStories }
-                    , Cmd.batch [ sendToBackend <| SendStoryToBE updatedStories roomId, Nav.pushUrl model.key <| "/room/" ++ (roomId |> String.fromInt) ]
-                    )
-
-        StoreName str ->
-            ( { model
-                | name =
-                    if str /= "" then
-                        Just str
-
-                    else
-                        Nothing
-                , error = Nothing
-              }
-            , Cmd.none
-            )
+        EditRoomName ->
+            ( model, Cmd.none )
 
         StoreRoom str ->
             ( { model
@@ -236,6 +200,60 @@ update msg model =
         StoreStory str ->
             ( { model
                 | story =
+                    if str /= "" then
+                        Story 0 str
+
+                    else
+                        NoStory (Just "Input is empty")
+                , error = Nothing
+              }
+            , Cmd.none
+            )
+
+        EditStory storyId ->
+            ( model, Cmd.none )
+
+        SendStory ->
+            case model.story of
+                NoStory errorMessage ->
+                    ( { model | story = NoStory Nothing, error = errorMessage }, Cmd.none )
+
+                Story storyId storyName ->
+                    ( { model | error = Nothing, story = NoStory Nothing, stories = model.stories ++ [ Story storyId storyName ] }, Cmd.none )
+
+        SaveStory ->
+            case model.story of
+                NoStory errorMessage ->
+                    ( { model | story = NoStory Nothing, error = errorMessage }, Cmd.none )
+
+                Story storyId storyName ->
+                    let
+                        -- TODO think about something smarter
+                        roomId =
+                            model.roomId |> Maybe.withDefault 1
+
+                        updatedStories =
+                            model.stories
+                                ++ [ Story storyId storyName ]
+                                |> List.indexedMap
+                                    (\int story ->
+                                        -- Before this step each story had pseudo id (-1)
+                                        case story of
+                                            Story _ strName ->
+                                                Story int strName
+
+                                            NoStory _ ->
+                                                -- I hope at this stage we won't have empty stories
+                                                NoStory Nothing
+                                    )
+                    in
+                    ( { model | error = Nothing, status = PokerStep, story = NoStory Nothing, stories = updatedStories }
+                    , Cmd.batch [ sendToBackend <| SendStoryToBE updatedStories roomId, Nav.pushUrl model.key <| "/room/" ++ (roomId |> String.fromInt) ]
+                    )
+
+        StoreName str ->
+            ( { model
+                | name =
                     if str /= "" then
                         Just str
 
@@ -642,16 +660,21 @@ view model =
                                             (model.stories
                                                 |> List.map
                                                     (\story ->
-                                                        Html.li
-                                                            [ Attr.css
-                                                                [ Tw.transition_all
-                                                                , Tw.absolute
-                                                                , Tw.w_full
-                                                                ]
-                                                            , Attr.class
-                                                                "hide-after-n"
-                                                            ]
-                                                            [ text story ]
+                                                        case story of
+                                                            Story _ storyName ->
+                                                                Html.li
+                                                                    [ Attr.css
+                                                                        [ Tw.transition_all
+                                                                        , Tw.absolute
+                                                                        , Tw.w_full
+                                                                        ]
+                                                                    , Attr.class
+                                                                        "hide-after-n"
+                                                                    ]
+                                                                    [ text storyName ]
+
+                                                            NoStory _ ->
+                                                                text ""
                                                     )
                                             )
                                         ]
@@ -661,9 +684,14 @@ view model =
                                             (Util.onEnter
                                                 SendStory
                                             )
-                                        |> viewInput StoreStory
-                                            (model.story
-                                                |> Maybe.withDefault ""
+                                        |> viewInput
+                                            StoreStory
+                                            (case model.story of
+                                                Story _ storyName ->
+                                                    storyName
+
+                                                NoStory _ ->
+                                                    ""
                                             )
                                     ]
                                 , Html.div
@@ -721,7 +749,7 @@ view model =
                                                 [ Tw.gap_10, Tw.items_center, Tw.flex_row ]
                                             ]
                                         ]
-                                        [ Html.h2 [ Attr.class "edit", Attr.css [ Tw.m_0, Tw.break_all, Tw.flex, Tw.items_center, Tw.cursor_pointer, Tw.cursor_pointer, Tw.self_start, Tw.pl_2 ] ]
+                                        [ Html.h2 [ Attr.class "edit", Attr.css [ Tw.m_0, Tw.break_all, Tw.flex, Tw.items_center, Tw.cursor_pointer, Tw.cursor_pointer, Tw.self_start, Tw.pl_2 ], onClick EditRoomName ]
                                             [ model.roomName |> Maybe.withDefault "Room name is not available" |> text
                                             , Html.span [ Attr.css [ Tw.ml_2 ] ] [ Svgs.withOverrideStyle |> Svgs.iconPencil ]
                                             ]
@@ -764,7 +792,19 @@ view model =
                                             Nothing ->
                                                 text ""
                                         ]
-                                    , Html.h4 [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400, Tw.font_extralight, Tw.break_all ] ] [ model.stories |> List.head |> Maybe.withDefault "There are no more stories" |> (++) "[ Current story ] " |> text ]
+                                    , Html.h4 [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400, Tw.font_extralight, Tw.break_all ] ]
+                                        [ model.stories
+                                            |> List.head
+                                            |> Maybe.withDefault (Story -1 "There are no more stories")
+                                            |> (\story ->
+                                                    case story of
+                                                        Story _ storyName ->
+                                                            text <| storyName ++ "[ Current story ] "
+
+                                                        NoStory _ ->
+                                                            text ""
+                                               )
+                                        ]
                                     , Html.div []
                                         [ Html.div []
                                             [ if model.shouldShowCharts then
@@ -829,10 +869,15 @@ view model =
                                         (model.stories
                                             |> List.map
                                                 (\story ->
-                                                    Html.li [ Attr.class "edit", Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.cursor_pointer, Tw.self_start, Tw.pl_2 ] ]
-                                                        [ text story
-                                                        , Html.span [ Attr.css [ Tw.ml_2 ] ] [ Svgs.withOverrideStyle |> Svgs.iconPencil ]
-                                                        ]
+                                                    case story of
+                                                        Story storyId storyName ->
+                                                            Html.li [ Attr.class "edit", Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.cursor_pointer, Tw.self_start, Tw.pl_2 ], onClick <| EditStory storyId ]
+                                                                [ text storyName
+                                                                , Html.span [ Attr.css [ Tw.ml_2 ] ] [ Svgs.withOverrideStyle |> Svgs.iconPencil ]
+                                                                ]
+
+                                                        NoStory _ ->
+                                                            text ""
                                                 )
                                         )
                                     ]

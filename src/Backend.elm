@@ -401,7 +401,7 @@ updateFromFrontend sessionId clientId msg model =
                         |> List.map
                             (\user -> { user | card = Nothing, voteState = NotVoted })
 
-                notifyCertainUsersAboutSomething : List User -> (List ValidTextField -> List User -> toFrontend) -> (SessionId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
+                notifyCertainUsersAboutSomething : List User -> (List Story -> List User -> toFrontend) -> (SessionId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
                 notifyCertainUsersAboutSomething usrs msgToFe f =
                     case usrs of
                         [] ->
