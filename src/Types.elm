@@ -22,6 +22,8 @@ type alias FrontendModel =
     , users : List User
     , sessionId : Maybe SessionId
     , clock : Int
+    , storyCount : Int
+    , editedStory : Story
     , shouldStartClock : Bool
     , shouldFlipCards : Bool
     , chart : Chart
@@ -143,7 +145,7 @@ type FrontendMsg
     | StoreStory String
     | SendName Credentials
     | SendRoom
-    | SendStory
+    | SendStory Int
     | SaveStory
     | ChooseCard Float String
     | Tick Time.Posix
@@ -160,7 +162,7 @@ type FrontendMsg
     | ShowBarChart
     | HideNotification
     | CopyRoomUrl
-    | EditStory StoryId
+    | EditStory StoryId StoryName
     | EditRoomName
     | NoOp
 
