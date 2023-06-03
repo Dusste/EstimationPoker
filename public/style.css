@@ -21,6 +21,10 @@ button {
     font-family: "Roboto-light", sans-serif;
 }
 
+input {
+    font-family: "Roboto-light", sans-serif;
+}
+
 .hide-after-n {
     animation: goleft 7s ease-in-out; 
     visibility: hidden;

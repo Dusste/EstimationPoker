@@ -219,10 +219,13 @@ update msg model =
         SendStory targetStoryId ->
             case model.story of
                 NoStory errorMessage ->
-                    ( { model | story = NoStory Nothing, error = errorMessage }, Cmd.none )
+                    ( { model | story = NoStory errorMessage, error = errorMessage }, Cmd.none )
 
                 Story _ storyName ->
                     let
+                        roomId =
+                            model.roomId |> Maybe.withDefault 1
+
                         updatedStories =
                             -- we are adding new stories, not editing
                             if List.isEmpty model.stories then
@@ -250,12 +253,14 @@ update msg model =
                                                     0
                                         )
                     in
-                    ( { model | error = Nothing, story = NoStory Nothing, editedStory = NoStory Nothing, storyCount = model.storyCount + 1, stories = updatedStories }, Cmd.none )
+                    ( { model | error = Nothing, story = NoStory Nothing, editedStory = NoStory Nothing, storyCount = model.storyCount + 1, stories = updatedStories }
+                    , sendToBackend <| SendStoryToBE updatedStories roomId
+                    )
 
         SaveStory ->
             case model.story of
                 NoStory errorMessage ->
-                    ( { model | story = NoStory Nothing, error = errorMessage }, Cmd.none )
+                    ( { model | story = NoStory errorMessage, error = errorMessage }, Cmd.none )
 
                 Story _ storyName ->
                     let
@@ -438,7 +443,10 @@ updateFromBackend msg model =
         ExposeCharts ->
             ( { model | shouldShowCharts = not <| model.shouldShowCharts, shouldStartClock = False, clock = 0, announcement = [] }, Cmd.none )
 
-        UpdateStories updatedStories resetUsers ->
+        UpdateStories updatedStories ->
+            ( { model | stories = updatedStories }, Cmd.none )
+
+        UpdateStoriesAfterSkip updatedStories resetUsers ->
             ( { model | stories = updatedStories, shouldShowCharts = not <| model.shouldShowCharts, users = resetUsers, shouldStartChartAnimation = False }, Cmd.none )
 
         ChartAnimation ->
@@ -699,7 +707,7 @@ view model =
                                             )
                                         ]
                                     , Html.input
-                                        [ Attr.css inputStyle
+                                        [ Attr.css <| withError model.error inputStyle
                                         , onInput StoreStory
                                         , Attr.value
                                             (case model.story of
@@ -889,31 +897,36 @@ view model =
                                                 (\story ->
                                                     case story of
                                                         Story storyId storyName ->
-                                                            Html.li [ Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.self_start ] ]
-                                                                [ if model.editedStory == Story storyId storyName then
-                                                                    Html.div [ Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.self_start ] ]
-                                                                        [ Html.input
-                                                                            [ Attr.css inputEditStyle
-                                                                            , onInput StoreStory
-                                                                            , Attr.value
-                                                                                (case model.story of
-                                                                                    Story _ sn ->
-                                                                                        sn
+                                                            case model.credentials of
+                                                                Admin ->
+                                                                    Html.li [ Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.self_start ] ]
+                                                                        [ if model.editedStory == Story storyId storyName then
+                                                                            Html.div [ Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.self_start ] ]
+                                                                                [ Html.input
+                                                                                    [ Attr.css <| withError model.error inputEditStyle
+                                                                                    , onInput StoreStory
+                                                                                    , Attr.value
+                                                                                        (case model.story of
+                                                                                            Story _ sn ->
+                                                                                                sn
 
-                                                                                    NoStory _ ->
-                                                                                        ""
-                                                                                )
-                                                                            ]
-                                                                            []
-                                                                        , Html.button [ Attr.css buttonEditStyle, onClick (SendStory storyId) ] [ text "Save" ]
+                                                                                            NoStory _ ->
+                                                                                                ""
+                                                                                        )
+                                                                                    ]
+                                                                                    []
+                                                                                , Html.button [ Attr.css buttonEditStyle, onClick (SendStory storyId) ] [ text "Save" ]
+                                                                                ]
+
+                                                                          else
+                                                                            Html.div [ Attr.class "edit", Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.cursor_pointer, Tw.self_start, Tw.pl_2 ], onClick <| EditStory storyId storyName ]
+                                                                                [ text storyName
+                                                                                , Html.span [ Attr.css [ Tw.ml_2 ] ] [ Svgs.withOverrideStyle |> Svgs.iconPencil ]
+                                                                                ]
                                                                         ]
 
-                                                                  else
-                                                                    Html.div [ Attr.class "edit", Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.cursor_pointer, Tw.self_start, Tw.pl_2 ], onClick <| EditStory storyId storyName ]
-                                                                        [ text storyName
-                                                                        , Html.span [ Attr.css [ Tw.ml_2 ] ] [ Svgs.withOverrideStyle |> Svgs.iconPencil ]
-                                                                        ]
-                                                                ]
+                                                                Employee ->
+                                                                    Html.li [ Attr.css [ Tw.break_all, Tw.pl_2, Tw.py_2 ] ] [ text storyName ]
 
                                                         NoStory _ ->
                                                             text ""

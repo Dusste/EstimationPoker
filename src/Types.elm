@@ -207,5 +207,6 @@ type ToFrontend
     | UsersCardReset (List User)
     | SkipStoryAndExposeCharts (List User)
     | ExposeCharts
-    | UpdateStories (List Story) (List User)
+    | UpdateStoriesAfterSkip (List Story) (List User)
+    | UpdateStories (List Story)
     | ChartAnimation
