@@ -15,6 +15,7 @@ type alias FrontendModel =
     , status : Status
     , name : Maybe String
     , roomName : Maybe String
+    , editRoomName : Maybe String
     , story : Story
     , stories : List Story
     , error : InvalidTextFiled
@@ -145,6 +146,7 @@ type FrontendMsg
     | StoreStory String
     | SendName Credentials
     | SendRoom
+    | SendEditedRoom
     | SendStory Int
     | SaveStory
     | ChooseCard Float String
@@ -163,7 +165,7 @@ type FrontendMsg
     | HideNotification
     | CopyRoomUrl
     | EditStory StoryId StoryName
-    | EditRoomName
+    | EditRoomName ValidTextField
     | NoOp
 
 
@@ -188,6 +190,7 @@ type ToBackend
     | SignalSkipStory RoomParam
     | SignalUpdateStories (List Story) RoomParam
     | SignalChartAnimation RoomParam
+    | SignalRoomNameEdit ValidTextField RoomParam
 
 
 type BackendMsg
@@ -210,3 +213,4 @@ type ToFrontend
     | UpdateStoriesAfterSkip (List Story) (List User)
     | UpdateStories (List Story)
     | ChartAnimation
+    | UpdateRoomName ValidTextField

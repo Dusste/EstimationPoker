@@ -65,6 +65,7 @@ initialModel url key =
     , status = EnterAdminNameStep
     , name = Nothing
     , roomName = Nothing
+    , editRoomName = Nothing
     , story = NoStory (Just "Input is empty")
     , error = Nothing
     , storyCount = 1
@@ -183,8 +184,21 @@ update msg model =
                     , sendToBackend <| SendRoomNameToBE validInput roomId
                     )
 
-        EditRoomName ->
-            ( model, Cmd.none )
+        EditRoomName roomName ->
+            ( { model | editRoomName = Just roomName }, Cmd.none )
+
+        SendEditedRoom ->
+            let
+                roomId =
+                    model.roomId
+                        |> Maybe.withDefault 1
+            in
+            case validateInput model.roomName of
+                Err errorMessage ->
+                    ( { model | error = errorMessage }, Cmd.none )
+
+                Ok validInput ->
+                    ( { model | editRoomName = Nothing }, sendToBackend <| SignalRoomNameEdit validInput roomId )
 
         StoreRoom str ->
             ( { model
@@ -411,6 +425,16 @@ updateFromBackend msg model =
                 |> Task.perform (\_ -> HideNotification)
             )
 
+        UpdateRoomName roomName ->
+            let
+                updatedAnnouncement =
+                    model.announcement ++ [ roomName ++ " is new name of the room !" ]
+            in
+            ( { model | announcement = updatedAnnouncement, roomName = Just roomName }
+            , Process.sleep 4000
+                |> Task.perform (\_ -> HideNotification)
+            )
+
         SupplyBEData { stories, users } ->
             ( { model | stories = stories, users = users }, Cmd.none )
 
@@ -444,7 +468,15 @@ updateFromBackend msg model =
             ( { model | shouldShowCharts = not <| model.shouldShowCharts, shouldStartClock = False, clock = 0, announcement = [] }, Cmd.none )
 
         UpdateStories updatedStories ->
-            ( { model | stories = updatedStories }, Cmd.none )
+            let
+                updatedAnnouncement =
+                    model.announcement
+                        |> (++) [ "Story updated !" ]
+            in
+            ( { model | stories = updatedStories, announcement = updatedAnnouncement }
+            , Process.sleep 4000
+                |> Task.perform (\_ -> HideNotification)
+            )
 
         UpdateStoriesAfterSkip updatedStories resetUsers ->
             ( { model | stories = updatedStories, shouldShowCharts = not <| model.shouldShowCharts, users = resetUsers, shouldStartChartAnimation = False }, Cmd.none )
@@ -775,9 +807,38 @@ view model =
                                                 [ Tw.gap_10, Tw.items_center, Tw.flex_row ]
                                             ]
                                         ]
-                                        [ Html.h2 [ Attr.class "edit", Attr.css [ Tw.m_0, Tw.break_all, Tw.flex, Tw.items_center, Tw.cursor_pointer, Tw.cursor_pointer, Tw.self_start, Tw.pl_2 ], onClick EditRoomName ]
-                                            [ model.roomName |> Maybe.withDefault "Room name is not available" |> text
-                                            , Html.span [ Attr.css [ Tw.ml_2 ] ] [ Svgs.withOverrideStyle |> Svgs.iconPencil ]
+                                        [ Html.div
+                                            [ Attr.css [] ]
+                                            [ case model.credentials of
+                                                Admin ->
+                                                    case model.editRoomName of
+                                                        Just _ ->
+                                                            Html.div [ Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.self_start ] ]
+                                                                [ inputEditStyle
+                                                                    |> withError model.error
+                                                                    |> withSendOnEnter
+                                                                        (Util.onEnter
+                                                                            SendRoom
+                                                                        )
+                                                                    |> viewInput StoreRoom
+                                                                        (model.roomName
+                                                                            |> Maybe.withDefault ""
+                                                                        )
+                                                                , Html.button [ Attr.css buttonEditStyle, onClick SendEditedRoom ] [ text "Save" ]
+                                                                ]
+
+                                                        Nothing ->
+                                                            Html.h2
+                                                                [ Attr.class "edit"
+                                                                , Attr.css [ Tw.m_0, Tw.break_all, Tw.flex, Tw.items_center, Tw.cursor_pointer, Tw.pl_2 ]
+                                                                , onClick <| EditRoomName (model.roomName |> Maybe.withDefault "Room name not availabe")
+                                                                ]
+                                                                [ model.roomName |> Maybe.withDefault "Room name is not available" |> text
+                                                                , Html.span [ Attr.css [ Tw.ml_2 ] ] [ Svgs.withOverrideStyle |> Svgs.iconPencil ]
+                                                                ]
+
+                                                Employee ->
+                                                    Html.h2 [ Attr.css [ Tw.m_0, Tw.break_all, Tw.flex, Tw.items_center ] ] [ model.roomName |> Maybe.withDefault "Room name is not available" |> text ]
                                             ]
                                         , case model.card of
                                             Just _ ->
@@ -1378,6 +1439,7 @@ inputEditStyle =
     , Tw.px_2
     , Tw.shadow_sm
     , Tw.ring_1
+    , Tw.h_12
     , Tw.font_light
     , Tw.ring_inset
     , Tw.ring_color Tw.gray_300
@@ -1385,7 +1447,7 @@ inputEditStyle =
     , Tw.text_color Tw.white
     , Css.focus
         [ Tw.outline_0
-        , Tw.ring_color Tw.slate_900
+        , Tw.ring_0
         ]
     , Bp.sm
         [ Tw.text_2xl
@@ -1403,7 +1465,14 @@ withError : InvalidTextFiled -> List Css.Style -> List Css.Style
 withError maybeError basicStyle =
     case maybeError of
         Just _ ->
-            basicStyle ++ [ Tw.bg_color Tw.red_200 ]
+            basicStyle
+                ++ [ Tw.border_2
+                   , Tw.border_color Tw.red_500
+                   , Tw.border_solid
+                   , Css.focus
+                        [ Tw.border_0
+                        ]
+                   ]
 
         Nothing ->
             basicStyle

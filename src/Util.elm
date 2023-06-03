@@ -255,6 +255,8 @@ colorConfig =
         , ( 29, Tw.lime_800 )
         , ( 30, Tw.pink_800 )
         , ( 31, Tw.sky_300 )
+
+        -- It's highly unlikely to get more then 31 participants
         ]
 
 
