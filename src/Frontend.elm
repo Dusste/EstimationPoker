@@ -857,7 +857,7 @@ view model =
                                                 Admin ->
                                                     case model.editRoomName of
                                                         Just _ ->
-                                                            Html.div [ Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.self_start ] ]
+                                                            Html.div [ Attr.css [ Tw.flex, Tw.items_center, Tw.self_start ] ]
                                                                 [ inputEditStyle
                                                                     |> withError model.error
                                                                     |> withSendOnEnter
@@ -969,11 +969,15 @@ view model =
                                                                     ]
                                                                 ]
                                                                 [ buttonStyle |> viewButtonWithMsg ResetTime "Reset timer"
-                                                                , if model.shouldFlipCards then
-                                                                    buttonStyle |> viewButtonWithMsg HideCards "Hide Votes "
+                                                                , if model.users |> List.any (\user -> user.voteState /= NotVoted) then
+                                                                    if model.shouldFlipCards then
+                                                                        buttonStyle |> viewButtonWithMsg HideCards "Hide Votes "
+
+                                                                    else
+                                                                        buttonStyle |> viewButtonWithMsg ShowCards "Show votes"
 
                                                                   else
-                                                                    buttonStyle |> viewButtonWithMsg ShowCards "Show votes"
+                                                                    text ""
                                                                 , buttonStyle |> viewButtonWithMsg ClearVotes "Clear votes"
                                                                 , buttonStyle |> viewButtonWithMsg SkipStory "Skip story"
                                                                 , if model.users |> List.all (\user -> not <| user.voteState == NotVoted) then
@@ -1012,8 +1016,7 @@ view model =
                                                                 Admin ->
                                                                     Html.li
                                                                         [ Attr.css
-                                                                            [ Tw.break_all
-                                                                            , Tw.flex
+                                                                            [ Tw.flex
                                                                             , Tw.items_center
                                                                             , Tw.self_start
                                                                             , if model.editedStory == Story storyId storyName then
@@ -1024,7 +1027,7 @@ view model =
                                                                             ]
                                                                         ]
                                                                         [ if model.editedStory == Story storyId storyName then
-                                                                            Html.div [ Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.self_start, Tw.w_full ] ]
+                                                                            Html.div [ Attr.css [ Tw.flex, Tw.items_center, Tw.self_start, Tw.w_full ] ]
                                                                                 [ Html.input
                                                                                     [ Attr.css <| withError model.error inputEditStyle
                                                                                     , onInput StoreStory
@@ -1408,8 +1411,11 @@ viewCharts model =
         , if model.shouldShowCharts && List.length model.stories > 1 && model.credentials == Admin then
             buttonStyle |> viewButtonWithMsg NextStory "Next Story"
 
+          else if model.shouldShowCharts && List.length model.stories == 1 && model.credentials == Admin then
+            text """[ Seems you are on the last story, add more on "+1" ]"""
+
           else
-            text "No more stories, add another one ? "
+            text ""
         ]
 
 
