@@ -102,8 +102,22 @@ updateFromFrontend sessionId clientId msg model =
 
                 updateRooms =
                     Dict.update roomId updateRecord model.rooms
+
+                { users } =
+                    updateRooms
+                        |> Dict.get roomId
+                        |> Maybe.withDefault defaultRoom
+
+                notifyCertainUsersAboutSomething : List User -> (List Story -> toFrontend) -> (SessionId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
+                notifyCertainUsersAboutSomething usrs msgToFe f =
+                    case usrs of
+                        [] ->
+                            []
+
+                        x :: xs ->
+                            (f x.sessionId <| msgToFe stories) :: notifyCertainUsersAboutSomething xs msgToFe f
             in
-            ( { model | rooms = updateRooms }, Cmd.none )
+            ( { model | rooms = updateRooms }, notifyCertainUsersAboutSomething users UpdateStories sendToFrontend |> Cmd.batch )
 
         ReqRoomRoute roomId credentials ->
             let
@@ -401,7 +415,7 @@ updateFromFrontend sessionId clientId msg model =
                         |> List.map
                             (\user -> { user | card = Nothing, voteState = NotVoted })
 
-                notifyCertainUsersAboutSomething : List User -> (List ValidTextField -> List User -> toFrontend) -> (SessionId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
+                notifyCertainUsersAboutSomething : List User -> (List Story -> List User -> toFrontend) -> (SessionId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
                 notifyCertainUsersAboutSomething usrs msgToFe f =
                     case usrs of
                         [] ->
@@ -410,7 +424,31 @@ updateFromFrontend sessionId clientId msg model =
                         x :: xs ->
                             (f x.sessionId <| msgToFe updatedStories updateUsers) :: notifyCertainUsersAboutSomething xs msgToFe f
             in
-            ( { model | rooms = updateRooms }, notifyCertainUsersAboutSomething users UpdateStories sendToFrontend |> Cmd.batch )
+            ( { model | rooms = updateRooms }, notifyCertainUsersAboutSomething users UpdateStoriesAfterSkip sendToFrontend |> Cmd.batch )
+
+        SignalRoomNameEdit roomName roomId ->
+            let
+                updateRecord =
+                    Maybe.map (\room -> { room | roomName = roomName })
+
+                updateRooms =
+                    Dict.update roomId updateRecord model.rooms
+
+                { users } =
+                    updateRooms
+                        |> Dict.get roomId
+                        |> Maybe.withDefault defaultRoom
+
+                notifyCertainUsersAboutSomething : List User -> (ValidTextField -> toFrontend) -> (SessionId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
+                notifyCertainUsersAboutSomething usrs msgToFe f =
+                    case usrs of
+                        [] ->
+                            []
+
+                        x :: xs ->
+                            (f x.sessionId <| msgToFe roomName) :: notifyCertainUsersAboutSomething xs msgToFe f
+            in
+            ( { model | rooms = updateRooms }, notifyCertainUsersAboutSomething users UpdateRoomName sendToFrontend |> Cmd.batch )
 
 
 subscriptions : BackendModel -> Sub BackendMsg

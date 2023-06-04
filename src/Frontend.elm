@@ -11,8 +11,7 @@ import Html.Styled.Events exposing (onClick, onInput)
 import Lamdera exposing (sendToBackend)
 import Ports
 import Process
-import Svg.Styled exposing (g, path, svg)
-import Svg.Styled.Attributes as SvgAttr
+import Svgs
 import Tailwind.Breakpoints as Bp
 import Tailwind.Theme as Tw
 import Tailwind.Utilities as Tw
@@ -66,14 +65,17 @@ initialModel url key =
     , status = EnterAdminNameStep
     , name = Nothing
     , roomName = Nothing
-    , story = Nothing
+    , editRoomName = Nothing
+    , story = NoStory (Just "Input is empty")
     , error = Nothing
+    , storyCount = 1
     , roomId = Nothing
     , stories = []
     , credentials = Admin
     , users = []
     , sessionId = Nothing
     , clock = 0
+    , editedStory = NoStory (Just "Input is empty")
     , chart = Bar
     , shouldStartClock = False
     , shouldFlipCards = False
@@ -182,44 +184,21 @@ update msg model =
                     , sendToBackend <| SendRoomNameToBE validInput roomId
                     )
 
-        SendStory ->
-            case validateInput model.story of
+        EditRoomName roomName ->
+            ( { model | editRoomName = Just roomName }, Cmd.none )
+
+        SendEditedRoom ->
+            let
+                roomId =
+                    model.roomId
+                        |> Maybe.withDefault 1
+            in
+            case validateInput model.roomName of
                 Err errorMessage ->
                     ( { model | error = errorMessage }, Cmd.none )
 
                 Ok validInput ->
-                    ( { model | error = Nothing, story = Nothing, stories = model.stories ++ [ validInput ] }, Cmd.none )
-
-        SaveStory ->
-            case validateInput model.story of
-                Err errorMessage ->
-                    ( { model | error = errorMessage }, Cmd.none )
-
-                Ok validInput ->
-                    let
-                        -- TODO think about something smarter
-                        roomId =
-                            model.roomId |> Maybe.withDefault 1
-
-                        updatedStories =
-                            model.stories ++ [ validInput ]
-                    in
-                    ( { model | error = Nothing, status = PokerStep, story = Nothing, stories = updatedStories }
-                    , Cmd.batch [ sendToBackend <| SendStoryToBE updatedStories roomId, Nav.pushUrl model.key <| "/room/" ++ (roomId |> String.fromInt) ]
-                    )
-
-        StoreName str ->
-            ( { model
-                | name =
-                    if str /= "" then
-                        Just str
-
-                    else
-                        Nothing
-                , error = Nothing
-              }
-            , Cmd.none
-            )
+                    ( { model | editRoomName = Nothing }, sendToBackend <| SignalRoomNameEdit validInput roomId )
 
         StoreRoom str ->
             ( { model
@@ -237,6 +216,83 @@ update msg model =
         StoreStory str ->
             ( { model
                 | story =
+                    if str /= "" then
+                        Story 0 str
+                        --assigning pseudo id
+
+                    else
+                        NoStory (Just "Input is empty")
+                , error = Nothing
+              }
+            , Cmd.none
+            )
+
+        EditStory storyId storyName ->
+            ( { model | editedStory = Story storyId storyName, story = Story storyId storyName }, Cmd.none )
+
+        SendStory targetStoryId ->
+            case model.story of
+                NoStory errorMessage ->
+                    ( { model | story = NoStory errorMessage, error = errorMessage }, Cmd.none )
+
+                Story _ storyName ->
+                    let
+                        roomId =
+                            model.roomId |> Maybe.withDefault 1
+
+                        updatedStories =
+                            -- we are adding new stories, not editing
+                            if List.isEmpty model.stories then
+                                model.stories ++ [ Story model.storyCount storyName ]
+
+                            else
+                                model.stories
+                                    |> List.filter
+                                        (\story ->
+                                            case story of
+                                                Story strId _ ->
+                                                    targetStoryId /= strId
+
+                                                NoStory _ ->
+                                                    False
+                                        )
+                                    |> List.append [ Story targetStoryId storyName ]
+                                    |> List.sortBy
+                                        (\story ->
+                                            case story of
+                                                Story strId _ ->
+                                                    strId
+
+                                                NoStory _ ->
+                                                    0
+                                        )
+                    in
+                    ( { model | error = Nothing, story = NoStory Nothing, editedStory = NoStory Nothing, storyCount = model.storyCount + 1, stories = updatedStories }
+                    , sendToBackend <| SendStoryToBE updatedStories roomId
+                    )
+
+        SaveStory ->
+            case model.story of
+                NoStory errorMessage ->
+                    ( { model | story = NoStory errorMessage, error = errorMessage }, Cmd.none )
+
+                Story _ storyName ->
+                    let
+                        -- TODO think about something smarter
+                        roomId =
+                            model.roomId |> Maybe.withDefault 1
+
+                        updatedStories =
+                            model.stories
+                                ++ [ Story model.storyCount storyName ]
+                    in
+                    ( { model | error = Nothing, status = PokerStep, story = NoStory Nothing, storyCount = 1, stories = updatedStories }
+                    , Cmd.batch [ sendToBackend <| SendStoryToBE updatedStories roomId, Nav.pushUrl model.key <| "/room/" ++ (roomId |> String.fromInt) ]
+                    )
+
+        StoreName str ->
+            ( { model
+                | name =
                     if str /= "" then
                         Just str
 
@@ -369,6 +425,16 @@ updateFromBackend msg model =
                 |> Task.perform (\_ -> HideNotification)
             )
 
+        UpdateRoomName roomName ->
+            let
+                updatedAnnouncement =
+                    model.announcement ++ [ roomName ++ " is new name of the room !" ]
+            in
+            ( { model | announcement = updatedAnnouncement, roomName = Just roomName }
+            , Process.sleep 4000
+                |> Task.perform (\_ -> HideNotification)
+            )
+
         SupplyBEData { stories, users } ->
             ( { model | stories = stories, users = users }, Cmd.none )
 
@@ -401,7 +467,18 @@ updateFromBackend msg model =
         ExposeCharts ->
             ( { model | shouldShowCharts = not <| model.shouldShowCharts, shouldStartClock = False, clock = 0, announcement = [] }, Cmd.none )
 
-        UpdateStories updatedStories resetUsers ->
+        UpdateStories updatedStories ->
+            let
+                updatedAnnouncement =
+                    model.announcement
+                        |> (++) [ "Story updated !" ]
+            in
+            ( { model | stories = updatedStories, announcement = updatedAnnouncement }
+            , Process.sleep 4000
+                |> Task.perform (\_ -> HideNotification)
+            )
+
+        UpdateStoriesAfterSkip updatedStories resetUsers ->
             ( { model | stories = updatedStories, shouldShowCharts = not <| model.shouldShowCharts, users = resetUsers, shouldStartChartAnimation = False }, Cmd.none )
 
         ChartAnimation ->
@@ -643,29 +720,37 @@ view model =
                                             (model.stories
                                                 |> List.map
                                                     (\story ->
-                                                        Html.li
-                                                            [ Attr.css
-                                                                [ Tw.transition_all
-                                                                , Tw.absolute
-                                                                , Tw.w_full
-                                                                ]
-                                                            , Attr.class
-                                                                "hide-after-n"
-                                                            ]
-                                                            [ text story ]
+                                                        case story of
+                                                            Story _ storyName ->
+                                                                Html.li
+                                                                    [ Attr.css
+                                                                        [ Tw.transition_all
+                                                                        , Tw.absolute
+                                                                        , Tw.w_full
+                                                                        ]
+                                                                    , Attr.class
+                                                                        "hide-after-n"
+                                                                    ]
+                                                                    [ text storyName ]
+
+                                                            NoStory _ ->
+                                                                text ""
                                                     )
                                             )
                                         ]
-                                    , inputStyle
-                                        |> withError model.error
-                                        |> withSendOnEnter
-                                            (Util.onEnter
-                                                SendStory
+                                    , Html.input
+                                        [ Attr.css <| withError model.error inputStyle
+                                        , onInput StoreStory
+                                        , Attr.value
+                                            (case model.story of
+                                                Story _ storyName ->
+                                                    storyName
+
+                                                NoStory _ ->
+                                                    ""
                                             )
-                                        |> viewInput StoreStory
-                                            (model.story
-                                                |> Maybe.withDefault ""
-                                            )
+                                        ]
+                                        []
                                     ]
                                 , Html.div
                                     [ Attr.css
@@ -678,7 +763,7 @@ view model =
                                         , Tw.justify_center
                                         ]
                                     ]
-                                    [ buttonStyle |> viewButtonWithMsg SendStory "Add New"
+                                    [ buttonStyle |> viewButtonWithMsg (SendStory model.storyCount) "Add New"
                                     , buttonStyle |> viewButtonWithMsg SaveStory "Save"
                                     ]
                                 ]
@@ -722,7 +807,39 @@ view model =
                                                 [ Tw.gap_10, Tw.items_center, Tw.flex_row ]
                                             ]
                                         ]
-                                        [ Html.h2 [ Attr.css [ Tw.m_0, Tw.break_all ] ] [ model.roomName |> Maybe.withDefault "Room name is not available" |> text ]
+                                        [ Html.div
+                                            [ Attr.css [] ]
+                                            [ case model.credentials of
+                                                Admin ->
+                                                    case model.editRoomName of
+                                                        Just _ ->
+                                                            Html.div [ Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.self_start ] ]
+                                                                [ inputEditStyle
+                                                                    |> withError model.error
+                                                                    |> withSendOnEnter
+                                                                        (Util.onEnter
+                                                                            SendRoom
+                                                                        )
+                                                                    |> viewInput StoreRoom
+                                                                        (model.roomName
+                                                                            |> Maybe.withDefault ""
+                                                                        )
+                                                                , Html.button [ Attr.css buttonEditStyle, onClick SendEditedRoom ] [ text "Save" ]
+                                                                ]
+
+                                                        Nothing ->
+                                                            Html.h2
+                                                                [ Attr.class "edit"
+                                                                , Attr.css [ Tw.m_0, Tw.break_all, Tw.flex, Tw.items_center, Tw.cursor_pointer, Tw.pl_2 ]
+                                                                , onClick <| EditRoomName (model.roomName |> Maybe.withDefault "Room name not availabe")
+                                                                ]
+                                                                [ model.roomName |> Maybe.withDefault "Room name is not available" |> text
+                                                                , Html.span [ Attr.css [ Tw.ml_2 ] ] [ Svgs.withOverrideStyle |> Svgs.iconPencil ]
+                                                                ]
+
+                                                Employee ->
+                                                    Html.h2 [ Attr.css [ Tw.m_0, Tw.break_all, Tw.flex, Tw.items_center ] ] [ model.roomName |> Maybe.withDefault "Room name is not available" |> text ]
+                                            ]
                                         , case model.card of
                                             Just _ ->
                                                 if model.shouldShowCharts then
@@ -762,7 +879,19 @@ view model =
                                             Nothing ->
                                                 text ""
                                         ]
-                                    , Html.h4 [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400, Tw.font_extralight, Tw.break_all ] ] [ model.stories |> List.head |> Maybe.withDefault "There are no more stories" |> (++) "[ Current story ] " |> text ]
+                                    , Html.h4 [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400, Tw.font_extralight, Tw.break_all ] ]
+                                        [ model.stories
+                                            |> List.head
+                                            |> Maybe.withDefault (Story -1 "There are no more stories")
+                                            |> (\story ->
+                                                    case story of
+                                                        Story _ storyName ->
+                                                            text <| "[ Current story ] " ++ storyName
+
+                                                        NoStory _ ->
+                                                            text ""
+                                               )
+                                        ]
                                     , Html.div []
                                         [ Html.div []
                                             [ if model.shouldShowCharts then
@@ -827,7 +956,41 @@ view model =
                                         (model.stories
                                             |> List.map
                                                 (\story ->
-                                                    Html.li [ Attr.css [ Tw.break_all ] ] [ text story ]
+                                                    case story of
+                                                        Story storyId storyName ->
+                                                            case model.credentials of
+                                                                Admin ->
+                                                                    Html.li [ Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.self_start ] ]
+                                                                        [ if model.editedStory == Story storyId storyName then
+                                                                            Html.div [ Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.self_start ] ]
+                                                                                [ Html.input
+                                                                                    [ Attr.css <| withError model.error inputEditStyle
+                                                                                    , onInput StoreStory
+                                                                                    , Attr.value
+                                                                                        (case model.story of
+                                                                                            Story _ sn ->
+                                                                                                sn
+
+                                                                                            NoStory _ ->
+                                                                                                ""
+                                                                                        )
+                                                                                    ]
+                                                                                    []
+                                                                                , Html.button [ Attr.css buttonEditStyle, onClick (SendStory storyId) ] [ text "Save" ]
+                                                                                ]
+
+                                                                          else
+                                                                            Html.div [ Attr.class "edit", Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.cursor_pointer, Tw.self_start, Tw.pl_2 ], onClick <| EditStory storyId storyName ]
+                                                                                [ text storyName
+                                                                                , Html.span [ Attr.css [ Tw.ml_2 ] ] [ Svgs.withOverrideStyle |> Svgs.iconPencil ]
+                                                                                ]
+                                                                        ]
+
+                                                                Employee ->
+                                                                    Html.li [ Attr.css [ Tw.break_all, Tw.pl_2, Tw.py_2 ] ] [ text storyName ]
+
+                                                        NoStory _ ->
+                                                            text ""
                                                 )
                                         )
                                     ]
@@ -873,7 +1036,7 @@ view model =
                                                     , Tw.text_color Tw.teal_400
                                                     , Css.focus
                                                         [ Tw.outline_0
-                                                        , Tw.ring_color Tw.gray_300
+                                                        , Tw.ring_color Tw.slate_900
                                                         ]
                                                     , Bp.sm
                                                         [ Tw.text_lg
@@ -1208,6 +1371,27 @@ buttonStyle =
     ]
 
 
+buttonEditStyle : List Css.Style
+buttonEditStyle =
+    [ Tw.bg_color Tw.teal_400
+    , Tw.text_color Tw.white
+    , Tw.py_2
+    , Tw.px_2
+    , Tw.text_xl
+    , Tw.border
+    , Tw.border_color Tw.teal_400
+    , Tw.rounded_sm
+    , Tw.rounded_l_none
+    , Tw.cursor_pointer
+    , Tw.transition_all
+    , Css.hover
+        [ Tw.bg_color Tw.teal_700
+        , Tw.border_color Tw.teal_400
+        , Tw.border_color Tw.transparent
+        ]
+    ]
+
+
 pluralification : Float -> String -> String
 pluralification count initial =
     if count == 1 then
@@ -1243,6 +1427,35 @@ inputStyle =
     ]
 
 
+inputEditStyle : List Css.Style
+inputEditStyle =
+    [ Tw.block
+    , Tw.form_input
+    , Tw.rounded_sm
+    , Tw.rounded_r_none
+    , Tw.border_0
+    , Tw.pt_2
+    , Tw.pb_3
+    , Tw.px_2
+    , Tw.shadow_sm
+    , Tw.ring_1
+    , Tw.h_12
+    , Tw.font_light
+    , Tw.ring_inset
+    , Tw.ring_color Tw.gray_300
+    , Tw.bg_color Tw.slate_900
+    , Tw.text_color Tw.white
+    , Css.focus
+        [ Tw.outline_0
+        , Tw.ring_0
+        ]
+    , Bp.sm
+        [ Tw.text_2xl
+        , Tw.leading_6
+        ]
+    ]
+
+
 withReadmeInput : List Css.Style -> List Css.Style
 withReadmeInput basicStyle =
     basicStyle ++ [ Tw.rounded_t_none ]
@@ -1252,7 +1465,14 @@ withError : InvalidTextFiled -> List Css.Style -> List Css.Style
 withError maybeError basicStyle =
     case maybeError of
         Just _ ->
-            basicStyle ++ [ Tw.bg_color Tw.red_200 ]
+            basicStyle
+                ++ [ Tw.border_2
+                   , Tw.border_color Tw.red_500
+                   , Tw.border_solid
+                   , Css.focus
+                        [ Tw.border_0
+                        ]
+                   ]
 
         Nothing ->
             basicStyle
@@ -1300,24 +1520,7 @@ viewNotifications { error, announcement } =
                 , Tw.bg_color Tw.red_200
                 ]
             ]
-            [ svg
-                [ Attr.css
-                    [ Tw.flex_shrink_0
-                    , Tw.inline
-                    , Tw.w_7
-                    , Tw.h_7
-                    , Tw.mr_3
-                    ]
-                , SvgAttr.fill "currentColor"
-                , SvgAttr.viewBox "0 0 20 20"
-                ]
-                [ path
-                    [ SvgAttr.fillRule "evenodd"
-                    , SvgAttr.d "M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                    , SvgAttr.clipRule "evenodd"
-                    ]
-                    []
-                ]
+            [ Svgs.iconError
             , case error of
                 Just err ->
                     text err
@@ -1356,32 +1559,7 @@ viewNotifications { error, announcement } =
                                 , Tw.duration_500
                                 ]
                             ]
-                            [ svg
-                                [ SvgAttr.height "22px"
-                                , SvgAttr.width "22px"
-                                , SvgAttr.version "1.1"
-                                , SvgAttr.viewBox "0 0 512 512"
-                                , SvgAttr.xmlSpace "preserve"
-                                , Attr.css
-                                    [ Tw.flex_shrink_0
-                                    , Tw.inline
-                                    , Tw.w_7
-                                    , Tw.h_7
-                                    , Tw.mr_3
-                                    ]
-                                , SvgAttr.fill "currentColor"
-                                ]
-                                [ g []
-                                    [ path
-                                        [ SvgAttr.d "M474.045,173.813c-4.201,1.371-6.494,5.888-5.123,10.088c7.571,23.199,11.411,47.457,11.411,72.1   c0,62.014-24.149,120.315-68,164.166s-102.153,68-164.167,68s-120.316-24.149-164.167-68S16,318.014,16,256   S40.149,135.684,84,91.833s102.153-68,164.167-68c32.889,0,64.668,6.734,94.455,20.017c28.781,12.834,54.287,31.108,75.81,54.315   c3.004,3.239,8.066,3.431,11.306,0.425c3.24-3.004,3.43-8.065,0.426-11.306c-23-24.799-50.26-44.328-81.024-58.047   C317.287,15.035,283.316,7.833,248.167,7.833c-66.288,0-128.608,25.813-175.48,72.687C25.814,127.392,0,189.712,0,256   c0,66.287,25.814,128.607,72.687,175.479c46.872,46.873,109.192,72.687,175.48,72.687s128.608-25.813,175.48-72.687   c46.873-46.872,72.687-109.192,72.687-175.479c0-26.332-4.105-52.26-12.201-77.064   C482.762,174.736,478.245,172.445,474.045,173.813z"
-                                        ]
-                                        []
-                                    , path
-                                        [ SvgAttr.d "M504.969,83.262c-4.532-4.538-10.563-7.037-16.98-7.037s-12.448,2.499-16.978,7.034l-7.161,7.161   c-3.124,3.124-3.124,8.189,0,11.313c3.124,3.123,8.19,3.124,11.314-0.001l7.164-7.164c1.51-1.512,3.52-2.344,5.66-2.344   s4.15,0.832,5.664,2.348c1.514,1.514,2.348,3.524,2.348,5.663s-0.834,4.149-2.348,5.663L217.802,381.75   c-1.51,1.512-3.52,2.344-5.66,2.344s-4.15-0.832-5.664-2.348L98.747,274.015c-1.514-1.514-2.348-3.524-2.348-5.663   c0-2.138,0.834-4.149,2.351-5.667c1.51-1.512,3.52-2.344,5.66-2.344s4.15,0.832,5.664,2.348l96.411,96.411   c1.5,1.5,3.535,2.343,5.657,2.343s4.157-0.843,5.657-2.343l234.849-234.849c3.125-3.125,3.125-8.189,0-11.314   c-3.124-3.123-8.189-3.123-11.313,0L212.142,342.129l-90.75-90.751c-4.533-4.538-10.563-7.037-16.98-7.037   s-12.448,2.499-16.978,7.034c-4.536,4.536-7.034,10.565-7.034,16.977c0,6.412,2.498,12.441,7.034,16.978l107.728,107.728   c4.532,4.538,10.563,7.037,16.98,7.037c6.417,0,12.448-2.499,16.977-7.033l275.847-275.848c4.536-4.536,7.034-10.565,7.034-16.978   S509.502,87.794,504.969,83.262z"
-                                        ]
-                                        []
-                                    ]
-                                ]
+                            [ Svgs.iconCheck
                             , text info
                             ]
                     )

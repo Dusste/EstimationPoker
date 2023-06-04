@@ -15,13 +15,16 @@ type alias FrontendModel =
     , status : Status
     , name : Maybe String
     , roomName : Maybe String
-    , story : Maybe String
-    , stories : List String
+    , editRoomName : Maybe String
+    , story : Story
+    , stories : List Story
     , error : InvalidTextFiled
     , roomId : Maybe RoomParam
     , users : List User
     , sessionId : Maybe SessionId
     , clock : Int
+    , storyCount : Int
+    , editedStory : Story
     , shouldStartClock : Bool
     , shouldFlipCards : Bool
     , chart : Chart
@@ -41,7 +44,7 @@ type alias BackendModel =
 type alias Room =
     { users : List User
     , roomName : ValidTextField
-    , stories : List ValidTextField
+    , stories : List Story
     }
 
 
@@ -52,6 +55,19 @@ type alias User =
     , sessionId : SessionId
     , voteState : VoteState
     }
+
+
+type Story
+    = Story StoryId StoryName
+    | NoStory InvalidTextFiled
+
+
+type alias StoryId =
+    Int
+
+
+type alias StoryName =
+    ValidTextField
 
 
 type Route
@@ -130,7 +146,8 @@ type FrontendMsg
     | StoreStory String
     | SendName Credentials
     | SendRoom
-    | SendStory
+    | SendEditedRoom
+    | SendStory Int
     | SaveStory
     | ChooseCard Float String
     | Tick Time.Posix
@@ -147,6 +164,8 @@ type FrontendMsg
     | ShowBarChart
     | HideNotification
     | CopyRoomUrl
+    | EditStory StoryId StoryName
+    | EditRoomName ValidTextField
     | NoOp
 
 
@@ -156,7 +175,7 @@ type Chart
 
 
 type ToBackend
-    = SendStoryToBE (List ValidTextField) RoomParam
+    = SendStoryToBE (List Story) RoomParam
     | SendRoomNameToBE ValidTextField RoomParam
     | SendAdminNameToBE ValidTextField
     | SendUserNameToBE ValidTextField RoomParam
@@ -169,8 +188,9 @@ type ToBackend
     | ClearAllUserVotes RoomParam
     | SignalShowCharts RoomParam
     | SignalSkipStory RoomParam
-    | SignalUpdateStories (List ValidTextField) RoomParam
+    | SignalUpdateStories (List Story) RoomParam
     | SignalChartAnimation RoomParam
+    | SignalRoomNameEdit ValidTextField RoomParam
 
 
 type BackendMsg
@@ -180,9 +200,9 @@ type BackendMsg
 
 type ToFrontend
     = SendRoomIdToFE RoomParam
-    | ResRoomRoute { status : Status, roomName : ValidTextField, sessionId : SessionId, users : List User, stories : List ValidTextField }
+    | ResRoomRoute { status : Status, roomName : ValidTextField, sessionId : SessionId, users : List User, stories : List Story }
     | UpdateRoom { sessionId : SessionId, name : ValidTextField }
-    | SupplyBEData { users : List User, stories : List ValidTextField }
+    | SupplyBEData { users : List User, stories : List Story }
     | UsersStartTimer
     | UsersResetTimer
     | UpdateCards (List User)
@@ -190,5 +210,7 @@ type ToFrontend
     | UsersCardReset (List User)
     | SkipStoryAndExposeCharts (List User)
     | ExposeCharts
-    | UpdateStories (List ValidTextField) (List User)
+    | UpdateStoriesAfterSkip (List Story) (List User)
+    | UpdateStories (List Story)
     | ChartAnimation
+    | UpdateRoomName ValidTextField
