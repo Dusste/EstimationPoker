@@ -227,13 +227,42 @@ update msg model =
             , Cmd.none
             )
 
+        AddStory ->
+            let
+                bumpStoryCount =
+                    model.storyCount
+                        + 1
+
+                storyIdThatIsCurrentlyEdited =
+                    case model.editedStory of
+                        Story storyId _ ->
+                            storyId - 1
+
+                        NoStory _ ->
+                            -1
+            in
+            if model.storyCount == storyIdThatIsCurrentlyEdited then
+                ( model
+                , Cmd.none
+                )
+
+            else
+                ( { model
+                    | stories = model.stories ++ [ Story bumpStoryCount <| "Story " ++ String.fromInt bumpStoryCount ]
+                    , editedStory = Story bumpStoryCount <| "Story " ++ String.fromInt bumpStoryCount
+                    , story = Story bumpStoryCount <| "Story " ++ String.fromInt bumpStoryCount
+                    , storyCount = bumpStoryCount
+                  }
+                , Cmd.none
+                )
+
         EditStory storyId storyName ->
             ( { model | editedStory = Story storyId storyName, story = Story storyId storyName }, Cmd.none )
 
-        SendStory targetStoryId ->
+        SendEditedStory targetStoryId ->
             case model.story of
-                NoStory errorMessage ->
-                    ( { model | story = NoStory errorMessage, error = errorMessage }, Cmd.none )
+                NoStory _ ->
+                    ( { model | story = model.editedStory, editedStory = NoStory (Just "Input is empty") }, Cmd.none )
 
                 Story _ storyName ->
                     let
@@ -241,35 +270,42 @@ update msg model =
                             model.roomId |> Maybe.withDefault 1
 
                         updatedStories =
-                            -- we are adding new stories, not editing
-                            if List.isEmpty model.stories then
-                                model.stories ++ [ Story model.storyCount storyName ]
+                            model.stories
+                                |> List.filter
+                                    (\story ->
+                                        case story of
+                                            Story strId _ ->
+                                                targetStoryId /= strId
 
-                            else
-                                model.stories
-                                    |> List.filter
-                                        (\story ->
-                                            case story of
-                                                Story strId _ ->
-                                                    targetStoryId /= strId
+                                            NoStory _ ->
+                                                False
+                                    )
+                                |> List.append [ Story targetStoryId storyName ]
+                                |> List.sortBy
+                                    (\story ->
+                                        case story of
+                                            Story strId _ ->
+                                                strId
 
-                                                NoStory _ ->
-                                                    False
-                                        )
-                                    |> List.append [ Story targetStoryId storyName ]
-                                    |> List.sortBy
-                                        (\story ->
-                                            case story of
-                                                Story strId _ ->
-                                                    strId
-
-                                                NoStory _ ->
-                                                    0
-                                        )
+                                            NoStory _ ->
+                                                0
+                                    )
                     in
-                    ( { model | error = Nothing, story = NoStory Nothing, editedStory = NoStory Nothing, storyCount = model.storyCount + 1, stories = updatedStories }
+                    ( { model | error = Nothing, story = NoStory Nothing, editedStory = NoStory Nothing, stories = updatedStories }
                     , sendToBackend <| SendStoryToBE updatedStories roomId
                     )
+
+        SendStory ->
+            case model.story of
+                NoStory errorMessage ->
+                    ( { model | error = errorMessage }, Cmd.none )
+
+                Story _ storyName ->
+                    let
+                        bumpStoryCount =
+                            model.storyCount + 1
+                    in
+                    ( { model | error = Nothing, story = NoStory (Just "Input is empty"), stories = model.stories ++ [ Story model.storyCount storyName ], storyCount = bumpStoryCount }, Cmd.none )
 
         SaveStory ->
             case model.story of
@@ -286,7 +322,7 @@ update msg model =
                             model.stories
                                 ++ [ Story model.storyCount storyName ]
                     in
-                    ( { model | error = Nothing, status = PokerStep, story = NoStory Nothing, storyCount = 1, stories = updatedStories }
+                    ( { model | error = Nothing, status = PokerStep, story = NoStory (Just "Input is empty"), stories = updatedStories }
                     , Cmd.batch [ sendToBackend <| SendStoryToBE updatedStories roomId, Nav.pushUrl model.key <| "/room/" ++ (roomId |> String.fromInt) ]
                     )
 
@@ -763,7 +799,7 @@ view model =
                                         , Tw.justify_center
                                         ]
                                     ]
-                                    [ buttonStyle |> viewButtonWithMsg (SendStory model.storyCount) "Add New"
+                                    [ buttonStyle |> viewButtonWithMsg SendStory "Add New"
                                     , buttonStyle |> viewButtonWithMsg SaveStory "Save"
                                     ]
                                 ]
@@ -808,7 +844,15 @@ view model =
                                             ]
                                         ]
                                         [ Html.div
-                                            [ Attr.css [] ]
+                                            [ Attr.css
+                                                [ case model.editRoomName of
+                                                    Just _ ->
+                                                        Tw.w_full
+
+                                                    Nothing ->
+                                                        Tw.w_auto
+                                                ]
+                                            ]
                                             [ case model.credentials of
                                                 Admin ->
                                                     case model.editRoomName of
@@ -834,7 +878,7 @@ view model =
                                                                 , onClick <| EditRoomName (model.roomName |> Maybe.withDefault "Room name not availabe")
                                                                 ]
                                                                 [ model.roomName |> Maybe.withDefault "Room name is not available" |> text
-                                                                , Html.span [ Attr.css [ Tw.ml_2 ] ] [ Svgs.withOverrideStyle |> Svgs.iconPencil ]
+                                                                , Html.span [ Attr.css [ Tw.flex, Tw.self_stretch, Tw.items_center, Tw.ml_2 ] ] [ Svgs.withOverrideStyle |> Svgs.iconPencil ]
                                                                 ]
 
                                                 Employee ->
@@ -949,8 +993,14 @@ view model =
                                             Employee ->
                                                 text ""
                                         ]
-                                    , Html.div [ Attr.css [ Tw.mt_10 ] ]
+                                    , Html.div [ Attr.css [ Tw.mt_10, Tw.flex, Tw.gap_4, Tw.items_start ] ]
                                         [ Html.h4 [ Attr.css [ Tw.text_3xl, Tw.m_0, Tw.mb_4 ] ] [ text "Stories:" ]
+                                        , case model.credentials of
+                                            Admin ->
+                                                buttonStyle |> viewButtonWithMsg AddStory "+ 1"
+
+                                            Employee ->
+                                                text ""
                                         ]
                                     , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.flex_col, Tw.text_2xl, Tw.gap_2 ] ]
                                         (model.stories
@@ -960,9 +1010,21 @@ view model =
                                                         Story storyId storyName ->
                                                             case model.credentials of
                                                                 Admin ->
-                                                                    Html.li [ Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.self_start ] ]
+                                                                    Html.li
+                                                                        [ Attr.css
+                                                                            [ Tw.break_all
+                                                                            , Tw.flex
+                                                                            , Tw.items_center
+                                                                            , Tw.self_start
+                                                                            , if model.editedStory == Story storyId storyName then
+                                                                                Tw.w_full
+
+                                                                              else
+                                                                                Tw.w_auto
+                                                                            ]
+                                                                        ]
                                                                         [ if model.editedStory == Story storyId storyName then
-                                                                            Html.div [ Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.self_start ] ]
+                                                                            Html.div [ Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.self_start, Tw.w_full ] ]
                                                                                 [ Html.input
                                                                                     [ Attr.css <| withError model.error inputEditStyle
                                                                                     , onInput StoreStory
@@ -976,18 +1038,18 @@ view model =
                                                                                         )
                                                                                     ]
                                                                                     []
-                                                                                , Html.button [ Attr.css buttonEditStyle, onClick (SendStory storyId) ] [ text "Save" ]
+                                                                                , Html.button [ Attr.css buttonEditStyle, onClick (SendEditedStory storyId) ] [ text "Save" ]
                                                                                 ]
 
                                                                           else
-                                                                            Html.div [ Attr.class "edit", Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.cursor_pointer, Tw.self_start, Tw.pl_2 ], onClick <| EditStory storyId storyName ]
+                                                                            Html.div [ Attr.class "edit", Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.cursor_pointer, Tw.self_start, Tw.pl_2, Tw.w_full, Tw.h_full ], onClick <| EditStory storyId storyName ]
                                                                                 [ text storyName
-                                                                                , Html.span [ Attr.css [ Tw.ml_2 ] ] [ Svgs.withOverrideStyle |> Svgs.iconPencil ]
+                                                                                , Html.span [ Attr.css [ Tw.flex, Tw.self_stretch, Tw.ml_2, Tw.items_center, Tw.py_1 ] ] [ Svgs.withOverrideStyle |> Svgs.iconPencil ]
                                                                                 ]
                                                                         ]
 
                                                                 Employee ->
-                                                                    Html.li [ Attr.css [ Tw.break_all, Tw.pl_2, Tw.py_2 ] ] [ text storyName ]
+                                                                    Html.li [ Attr.css [ Tw.break_all, Tw.py_2 ] ] [ text storyName ]
 
                                                         NoStory _ ->
                                                             text ""
@@ -1347,7 +1409,7 @@ viewCharts model =
             buttonStyle |> viewButtonWithMsg NextStory "Next Story"
 
           else
-            text ""
+            text "No more stories, add another one ? "
         ]
 
 
@@ -1414,15 +1476,12 @@ inputStyle =
     , Tw.shadow_sm
     , Tw.ring_1
     , Tw.ring_inset
+    , Tw.text_lg
     , Tw.ring_color Tw.gray_300
     , Css.focus
         [ Tw.ring_2
         , Tw.ring_inset
         , Tw.ring_color Tw.teal_400
-        ]
-    , Bp.sm
-        [ Tw.text_lg
-        , Tw.leading_6
         ]
     ]
 
@@ -1434,12 +1493,13 @@ inputEditStyle =
     , Tw.rounded_sm
     , Tw.rounded_r_none
     , Tw.border_0
-    , Tw.pt_2
-    , Tw.pb_3
+    , Tw.py_2
     , Tw.px_2
     , Tw.shadow_sm
     , Tw.ring_1
     , Tw.h_12
+    , Tw.text_2xl
+    , Tw.flex_1
     , Tw.font_light
     , Tw.ring_inset
     , Tw.ring_color Tw.gray_300
@@ -1448,10 +1508,6 @@ inputEditStyle =
     , Css.focus
         [ Tw.outline_0
         , Tw.ring_0
-        ]
-    , Bp.sm
-        [ Tw.text_2xl
-        , Tw.leading_6
         ]
     ]
 
@@ -1552,6 +1608,7 @@ viewNotifications { error, announcement } =
                                 , Tw.flex
                                 , Tw.text_lg
                                 , Tw.justify_center
+                                , Tw.text_center
                                 , Tw.text_color Tw.green_800
                                 , Tw.bg_color Tw.green_200
                                 , Tw.mb_5

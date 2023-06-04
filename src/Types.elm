@@ -147,7 +147,8 @@ type FrontendMsg
     | SendName Credentials
     | SendRoom
     | SendEditedRoom
-    | SendStory Int
+    | SendStory
+    | SendEditedStory Int
     | SaveStory
     | ChooseCard Float String
     | Tick Time.Posix
@@ -166,6 +167,7 @@ type FrontendMsg
     | CopyRoomUrl
     | EditStory StoryId StoryName
     | EditRoomName ValidTextField
+    | AddStory
     | NoOp
 
 
