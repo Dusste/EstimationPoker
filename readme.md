@@ -13,7 +13,7 @@
 - You can: start timer, skip story, show votes (for others to see, they are hidden initially), reset timer, clear votes
 - Also, 'finish voting'
 - Donut and bar chart will be presented to reppresent percentage of votes
-- Also: on Voting step, you can edit stories names or room name on the fly if you are admin
+- Also: on Voting step, you can edit stories names or room name on the fly, or add a new story, if you are admin
 ## Usage
 
 ```javascript
