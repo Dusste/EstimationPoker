@@ -51,6 +51,7 @@ updateFromFrontend sessionId clientId msg model =
                             ]
                         , roomName = ""
                         , stories = []
+                        , sequence = Default
                         }
                         model.rooms
             in
@@ -449,6 +450,30 @@ updateFromFrontend sessionId clientId msg model =
                             (f x.sessionId <| msgToFe roomName) :: notifyCertainUsersAboutSomething xs msgToFe f
             in
             ( { model | rooms = updateRooms }, notifyCertainUsersAboutSomething users UpdateRoomName sendToFrontend |> Cmd.batch )
+
+        SendSequenceToBE commonSequence roomId ->
+            let
+                updateRecord =
+                    Maybe.map (\room -> { room | sequence = commonSequence })
+
+                updateRooms =
+                    Dict.update roomId updateRecord model.rooms
+
+                { users } =
+                    updateRooms
+                        |> Dict.get roomId
+                        |> Maybe.withDefault defaultRoom
+
+                notifyCertainUsersAboutSomething : List User -> (CommonSequence -> toFrontend) -> (SessionId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
+                notifyCertainUsersAboutSomething usrs msgToFe f =
+                    case usrs of
+                        [] ->
+                            []
+
+                        x :: xs ->
+                            (f x.sessionId <| msgToFe commonSequence) :: notifyCertainUsersAboutSomething xs msgToFe f
+            in
+            ( { model | rooms = updateRooms }, notifyCertainUsersAboutSomething users UpdateSequence sendToFrontend |> Cmd.batch )
 
 
 subscriptions : BackendModel -> Sub BackendMsg

@@ -4,6 +4,7 @@ import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
 import Lamdera exposing (ClientId, SessionId)
+import Task exposing (sequence)
 import Time
 import Url exposing (Url)
 
@@ -25,6 +26,8 @@ type alias FrontendModel =
     , clock : Int
     , storyCount : Int
     , editedStory : Story
+    , sequence : Maybe String
+    , chooseSequence : CommonSequence
     , shouldStartClock : Bool
     , shouldFlipCards : Bool
     , chart : Chart
@@ -45,6 +48,7 @@ type alias Room =
     { users : List User
     , roomName : ValidTextField
     , stories : List Story
+    , sequence : CommonSequence
     }
 
 
@@ -68,6 +72,13 @@ type alias StoryId =
 
 type alias StoryName =
     ValidTextField
+
+
+type CommonSequence
+    = Default
+    | Option2
+    | Option3
+    | Option4
 
 
 type Route
@@ -94,6 +105,7 @@ type Status
     | EnterAdminNameStep
     | CreateRoomStep
     | CreateStoryStep
+    | StoryPointsSequenceStep
     | PokerStep
     | Step404
 
@@ -125,6 +137,7 @@ defaultRoom =
     { users = []
     , roomName = "Room name not availabe"
     , stories = []
+    , sequence = Default
     }
 
 
@@ -136,6 +149,10 @@ defaultUser =
     , sessionId = "Invalid session id"
     , voteState = NotVoted
     }
+
+
+type alias SequenceString =
+    String
 
 
 type FrontendMsg
@@ -157,6 +174,9 @@ type FrontendMsg
     | ShowCards
     | HideCards
     | ClearVotes
+    | StoreSequence SequenceString
+    | SendSequence
+    | SelectSequence CommonSequence
     | FinishVoting
     | NextStory
     | SkipStory
@@ -193,6 +213,7 @@ type ToBackend
     | SignalUpdateStories (List Story) RoomParam
     | SignalChartAnimation RoomParam
     | SignalRoomNameEdit ValidTextField RoomParam
+    | SendSequenceToBE CommonSequence RoomParam
 
 
 type BackendMsg
@@ -216,3 +237,4 @@ type ToFrontend
     | UpdateStories (List Story)
     | ChartAnimation
     | UpdateRoomName ValidTextField
+    | UpdateSequence CommonSequence

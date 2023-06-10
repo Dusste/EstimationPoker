@@ -260,8 +260,8 @@ colorConfig =
         ]
 
 
-cards : List { name : String, value : Float }
-cards =
+defaultCards : List { name : String, value : Float }
+defaultCards =
     [ { name = "0", value = 0 }
     , { name = "1/2", value = 0.5 }
     , { name = "1", value = 1 }
@@ -272,9 +272,76 @@ cards =
     , { name = "20", value = 20 }
     , { name = "40", value = 40 }
     , { name = "100", value = 100 }
-    , { name = "?", value = 0 }
+    , { name = "?", value = 0 } -- TODO: Figure out how to display it as "?" in views (-100 ?)
     , { name = 0x2615 |> Char.fromCode |> String.fromChar, value = 0 }
     ]
+
+
+fromStringToCards : SequenceString -> List { name : String, value : Float }
+fromStringToCards seqStr =
+    seqStr
+        |> String.split ","
+        |> List.map
+            (\str ->
+                let
+                    trimedStringInt =
+                        str |> String.trim
+                in
+                case trimedStringInt |> String.toInt of
+                    Just int ->
+                        { name = trimedStringInt, value = toFloat int }
+
+                    Nothing ->
+                        let
+                            val =
+                                case str of
+                                    "?" ->
+                                        toFloat 0
+
+                                    "1/2" ->
+                                        0.5
+
+                                    _ ->
+                                        0
+                        in
+                        { name = trimedStringInt, value = val }
+            )
+
+
+defaultSequenceValues : SequenceString
+defaultSequenceValues =
+    "0, 1/2, 1, 2, 3, 5, 13, 20, 40, 100, ?," ++ (0x2615 |> Char.fromCode |> String.fromChar)
+
+
+option2SequenceValues : SequenceString
+option2SequenceValues =
+    "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12"
+
+
+option3SequenceValues : SequenceString
+option3SequenceValues =
+    "10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120"
+
+
+option4SequenceValues : SequenceString
+option4SequenceValues =
+    "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12"
+
+
+fromSequenceToCards : CommonSequence -> List { name : String, value : Float }
+fromSequenceToCards seq =
+    case seq of
+        Default ->
+            defaultCards
+
+        Option2 ->
+            fromStringToCards option2SequenceValues
+
+        Option3 ->
+            fromStringToCards option3SequenceValues
+
+        Option4 ->
+            fromStringToCards option4SequenceValues
 
 
 roundFloat : Float -> Int -> String

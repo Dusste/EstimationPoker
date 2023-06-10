@@ -42,6 +42,11 @@ input {
     transform-origin: center;
 }
 
+.selectedSequence {
+    transform: scale(1.2);
+    opacity: 1!important;
+}
+
 .transitionToLeft {
     animation: goleft 3s ease-in-out; 
 }
