@@ -369,6 +369,15 @@ roundFloat flt roundToNumberOfPlaces =
             [ firstPart, slicedSecondPart ] |> String.join "."
 
 
+pluralize : Int -> String -> String
+pluralize num initialString =
+    if num == 1 then
+        initialString
+
+    else
+        initialString ++ "s"
+
+
 onEnterWithCred : Credentials -> (Credentials -> FrontendMsg) -> Attribute FrontendMsg
 onEnterWithCred cred msg =
     let

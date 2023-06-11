@@ -26,7 +26,7 @@ type alias FrontendModel =
     , shouldEnableCustomSequence : Bool
     , storyCount : Int
     , editedStory : Story
-    , sequence : Maybe String
+    , sequence : Sequence
     , chooseSequence : CommonSequence
     , shouldStartClock : Bool
     , shouldFlipCards : Bool
@@ -80,6 +80,12 @@ type CommonSequence
     | Option3
     | Option4
     | CustomSequence SequenceString
+
+
+type Sequence
+    = Accept SequenceString
+    | Reject String
+    | Inactive
 
 
 type Route

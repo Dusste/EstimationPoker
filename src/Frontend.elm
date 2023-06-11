@@ -62,10 +62,7 @@ initialModel : Url -> Nav.Key -> Model
 initialModel url key =
     { key = key
     , url = Util.getBaseUrl url
-
-    -- , status = EnterAdminNameStep
-    -- , status = PokerStep
-    , status = StoryPointsSequenceStep
+    , status = EnterAdminNameStep
     , name = Nothing
     , roomName = Nothing
     , editRoomName = Nothing
@@ -77,7 +74,7 @@ initialModel url key =
     , credentials = Admin
     , users = []
     , shouldEnableCustomSequence = False
-    , sequence = Nothing
+    , sequence = Inactive
     , chooseSequence = Default
     , sessionId = Nothing
     , clock = 0
@@ -374,26 +371,29 @@ update msg model =
                     String.trim str
             in
             let
-                fromStringToSequence : String -> Maybe String
+                fromStringToSequence : String -> Sequence
                 fromStringToSequence input =
                     {-
                        TODO:
                        -Number should not start with 0
                        -Find way how to add 0.5 points
-
                     -}
                     let
                         sizeLimit =
                             12
 
                         hasReachedSizeLimit =
-                            input |> String.split "-" |> List.length |> (<=) sizeLimit
+                            input
+                                |> String.split "-"
+                                |> List.filterMap String.toInt
+                                |> List.length
+                                |> (<=) sizeLimit
                     in
                     if input == "" || String.startsWith " " input || String.startsWith "-" input then
-                        Nothing
+                        Inactive
 
                     else if hasReachedSizeLimit then
-                        Just
+                        Accept
                             (input
                                 |> String.filter (\ch -> Char.isDigit ch || ch == '-')
                                 |> String.split "-"
@@ -403,16 +403,16 @@ update msg model =
                             )
 
                     else if String.endsWith "- " str then
-                        Just <| String.dropRight 1 input ++ "-"
+                        Reject <| String.dropRight 1 input ++ "-"
 
                     else if String.endsWith "--" str then
-                        Just <| String.dropRight 1 input
+                        Reject <| String.dropRight 1 input
 
                     else if String.endsWith " " str then
-                        Just <| input ++ "-"
+                        Reject <| input ++ "-"
 
                     else
-                        Just
+                        Reject
                             (input
                                 |> String.filter (\ch -> Char.isDigit ch || ch == '-')
                             )
@@ -438,7 +438,7 @@ update msg model =
 
         SendCustomSequence ->
             case model.sequence of
-                Just sequence ->
+                Accept sequence ->
                     ( { model | status = PokerStep }
                     , Cmd.batch
                         [ sendToBackend <|
@@ -448,7 +448,10 @@ update msg model =
                         ]
                     )
 
-                Nothing ->
+                Reject _ ->
+                    ( model, Cmd.none )
+
+                Inactive ->
                     ( model, Cmd.none )
 
         SelectSequence option ->
@@ -1163,19 +1166,60 @@ view model =
                                                     (Util.onEnter
                                                         SendCustomSequence
                                                     )
-                                                |> withPlaceholder "add numbers separated by space"
+                                                |> withPlaceholder "eg: 23 47 86 21 90"
                                                 |> viewInput StoreSequence
-                                                    (model.sequence
-                                                        |> Maybe.withDefault ""
+                                                    (case model.sequence of
+                                                        Accept str ->
+                                                            str
+
+                                                        Reject st ->
+                                                            st
+
+                                                        Inactive ->
+                                                            ""
                                                     )
                                             , if model.shouldEnableCustomSequence then
-                                                Html.div [ Attr.css [ Tw.flex, Tw.opacity_80, Tw.rounded, Tw.text_xs, Tw.text_color Tw.white, Tw.flex_col, Tw.absolute, Tw.border, Tw.border_color Tw.white, Tw.neg_right_2over3, Tw.neg_top_2over4, Tw.border_solid, Tw.p_2 ] ]
+                                                Html.div
+                                                    [ Attr.css
+                                                        [ Tw.flex
+                                                        , Tw.opacity_80
+                                                        , Tw.rounded
+                                                        , Tw.text_xs
+                                                        , Tw.text_color Tw.white
+                                                        , Tw.flex_col
+                                                        , Tw.mt_4
+                                                        , Tw.border
+                                                        , Tw.border_color Tw.white
+                                                        , Tw.border_solid
+                                                        , Tw.p_2
+                                                        , Bp.lg
+                                                            [ Tw.absolute
+                                                            , Tw.neg_right_2over3
+                                                            , Tw.neg_top_2over4
+                                                            , Tw.mt_0
+                                                            ]
+                                                        ]
+                                                    ]
                                                     [ Html.p [ Attr.css [ Tw.mt_0 ] ] [ text "It comes with couple of constrains:" ]
                                                     , Html.ul [ Attr.css [ Tw.list_none, Tw.p_0, Tw.m_0, Tw.text_left ] ]
                                                         [ Html.li [] [ text """- Enter 12 numbers separated by " " (space)""" ]
                                                         , Html.li [] [ text """- 3 digit max per item """ ]
                                                         ]
-                                                    , Html.div [ Attr.css [ Tw.w_3, Tw.h_0_dot_5, Tw.bg_color Tw.white, Tw.absolute, Tw.top_2over4, Tw.neg_left_3 ] ] []
+                                                    , Html.div
+                                                        [ Attr.css
+                                                            [ Tw.w_3
+                                                            , Tw.h_0_dot_5
+                                                            , Tw.hidden
+                                                            , Tw.bg_color Tw.white
+                                                            , Tw.absolute
+                                                            , Tw.top_2over4
+                                                            , Tw.neg_left_3
+                                                            , Bp.lg
+                                                                [ Tw.block
+                                                                ]
+                                                            ]
+                                                        ]
+                                                        []
                                                     ]
 
                                               else
@@ -1192,45 +1236,54 @@ view model =
                                                 ]
                                             ]
                                             [ case model.sequence of
-                                                Just input ->
-                                                    Html.div [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight, Tw.flex, Tw.justify_center ] ]
-                                                        [ Html.div
-                                                            [ Attr.css [ Tw.p_4, Tw.bg_color Tw.teal_400, Tw.text_color Tw.white, Tw.cursor_pointer, Tw.transition_all ]
-                                                            ]
-                                                            [ Html.p [ Attr.css [ Tw.mt_0 ] ] [ text "Your Sequence" ]
-                                                            , Html.div
-                                                                [ Attr.css [ Tw.flex, Tw.flex_wrap ] ]
-                                                                (input
-                                                                    |> String.split "-"
-                                                                    |> List.map
-                                                                        (\intAsStr ->
-                                                                            Html.p
-                                                                                [ Attr.css
-                                                                                    [ Tw.flex
-                                                                                    , Tw.m_0
-                                                                                    , Tw.h_5
-                                                                                    , Tw.border_color Tw.white
-                                                                                    , Tw.border_solid
-                                                                                    , Tw.border_2
-                                                                                    , Tw.justify_center
-                                                                                    , Tw.w_1over4
-                                                                                    , Tw.items_center
-                                                                                    , Tw.p_0
-                                                                                    , Tw.text_sm
-                                                                                    , Tw.overflow_hidden
-                                                                                    , Tw.relative
-                                                                                    , Tw.cursor_pointer
+                                                Accept input ->
+                                                    Html.div []
+                                                        [ Html.div [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight, Tw.flex, Tw.justify_center ] ]
+                                                            [ Html.div
+                                                                [ Attr.css [ Tw.p_4, Tw.bg_color Tw.teal_400, Tw.text_color Tw.white, Tw.cursor_pointer, Tw.transition_all ]
+                                                                ]
+                                                                [ Html.p [ Attr.css [ Tw.mt_0 ] ] [ text "Your Sequence" ]
+                                                                , Html.div
+                                                                    [ Attr.css [ Tw.flex, Tw.flex_wrap ] ]
+                                                                    (input
+                                                                        |> String.split "-"
+                                                                        |> List.map
+                                                                            (\intAsStr ->
+                                                                                Html.p
+                                                                                    [ Attr.css
+                                                                                        [ Tw.flex
+                                                                                        , Tw.m_0
+                                                                                        , Tw.h_5
+                                                                                        , Tw.border_color Tw.white
+                                                                                        , Tw.border_solid
+                                                                                        , Tw.border_2
+                                                                                        , Tw.justify_center
+                                                                                        , Tw.w_1over4
+                                                                                        , Tw.items_center
+                                                                                        , Tw.p_0
+                                                                                        , Tw.text_sm
+                                                                                        , Tw.overflow_hidden
+                                                                                        , Tw.relative
+                                                                                        , Tw.cursor_pointer
+                                                                                        ]
                                                                                     ]
-                                                                                ]
-                                                                                [ text intAsStr ]
-                                                                        )
-                                                                )
+                                                                                    [ text intAsStr ]
+                                                                            )
+                                                                    )
+                                                                ]
                                                             ]
+                                                        , buttonStyle |> viewButtonWithMsg SendCustomSequence "Create"
                                                         ]
 
-                                                Nothing ->
+                                                Reject str ->
+                                                    let
+                                                        numbersUntilValidSequence =
+                                                            str |> String.split "-" |> List.filterMap String.toInt |> List.length |> (-) 12
+                                                    in
+                                                    Html.p [ Attr.css [ Tw.text_color Tw.orange_400 ] ] [ text <| String.fromInt numbersUntilValidSequence ++ " " ++ Util.pluralize numbersUntilValidSequence "number" ++ " to go" ]
+
+                                                Inactive ->
                                                     text ""
-                                            , buttonStyle |> viewButtonWithMsg SendCustomSequence "Create"
                                             ]
                                         , if not <| model.shouldEnableCustomSequence then
                                             -- Overlay el
