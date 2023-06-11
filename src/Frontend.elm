@@ -62,10 +62,10 @@ initialModel : Url -> Nav.Key -> Model
 initialModel url key =
     { key = key
     , url = Util.getBaseUrl url
-    , status = EnterAdminNameStep
 
+    -- , status = EnterAdminNameStep
     -- , status = PokerStep
-    -- , status = StoryPointsSequenceStep
+    , status = StoryPointsSequenceStep
     , name = Nothing
     , roomName = Nothing
     , editRoomName = Nothing
@@ -76,6 +76,7 @@ initialModel url key =
     , stories = []
     , credentials = Admin
     , users = []
+    , shouldEnableCustomSequence = False
     , sequence = Nothing
     , chooseSequence = Default
     , sessionId = Nothing
@@ -426,10 +427,7 @@ update msg model =
             )
 
         SendSequence ->
-            {-
-               TODO: for now we are just sending Common Sequences to BE
-            -}
-            ( { model | sequence = model.sequence, status = PokerStep }
+            ( { model | status = PokerStep }
             , Cmd.batch
                 [ sendToBackend <|
                     SendSequenceToBE model.chooseSequence
@@ -437,6 +435,21 @@ update msg model =
                 , Nav.pushUrl model.key <| "/room/" ++ (model.roomId |> Maybe.withDefault 1 |> String.fromInt)
                 ]
             )
+
+        SendCustomSequence ->
+            case model.sequence of
+                Just sequence ->
+                    ( { model | status = PokerStep }
+                    , Cmd.batch
+                        [ sendToBackend <|
+                            SendCustomSequenceToBE sequence
+                                (model.roomId |> Maybe.withDefault 1)
+                        , Nav.pushUrl model.key <| "/room/" ++ (model.roomId |> Maybe.withDefault 1 |> String.fromInt)
+                        ]
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
 
         SelectSequence option ->
             ( { model | chooseSequence = option }, Cmd.none )
@@ -497,6 +510,9 @@ update msg model =
 
         HideNotification ->
             ( { model | announcement = List.drop 1 model.announcement }, Cmd.none )
+
+        EnableSequenceInput ->
+            ( { model | shouldEnableCustomSequence = not <| model.shouldEnableCustomSequence }, Cmd.none )
 
 
 updateFromBackend : ToFrontend -> Model -> ( Model, Cmd FrontendMsg )
@@ -924,12 +940,56 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ Choose between common ]" ]
-                                    , Html.div []
-                                        [ Html.ul [ Attr.css [ Tw.text_color Tw.white, Tw.list_none, Tw.flex, Tw.flex_wrap, Tw.items_center, Tw.p_0, Tw.mx_auto ] ]
+                                    [ Html.p
+                                        [ Attr.css
+                                            [ Tw.text_color Tw.gray_400
+                                            , Tw.text_lg
+                                            , Tw.italic
+                                            , Tw.mb_4
+                                            , Tw.mt_0
+                                            , Tw.font_extralight
+                                            , if model.shouldEnableCustomSequence then
+                                                Tw.hidden
+
+                                              else
+                                                Tw.block
+                                            , Bp.lg [ Tw.block ]
+                                            ]
+                                        ]
+                                        [ text "[ Choose between common ]" ]
+                                    , Html.div
+                                        [ Attr.css
+                                            [ Tw.relative
+                                            , Tw.flex_col
+                                            , if model.shouldEnableCustomSequence then
+                                                Tw.hidden
+
+                                              else
+                                                Tw.flex
+                                            , Bp.lg [ Tw.flex ]
+                                            ]
+                                        ]
+                                        [ if model.shouldEnableCustomSequence then
+                                            -- Overlay el
+                                            Html.div
+                                                [ Attr.css
+                                                    [ Tw.absolute
+                                                    , Tw.w_full
+                                                    , Tw.h_full
+                                                    , Tw.top_0
+                                                    , Tw.opacity_80
+                                                    , Tw.bg_color Tw.black
+                                                    , Tw.z_10
+                                                    ]
+                                                ]
+                                                []
+
+                                          else
+                                            text ""
+                                        , Html.ul [ Attr.css [ Tw.text_color Tw.white, Tw.list_none, Tw.flex, Tw.flex_wrap, Tw.items_center, Tw.p_0, Tw.mx_auto ] ]
                                             [ Html.li [ onClick <| SelectSequence Default, Attr.css [ Tw.w_2over4, Tw.border_2, Tw.border_color Tw.white, Tw.border_solid, Tw.border_l_0, Tw.border_t_0 ] ]
                                                 [ Html.div
-                                                    [ Attr.css [ Tw.m_5, Tw.p_4, Tw.bg_color Tw.teal_400, Tw.opacity_70, Tw.cursor_pointer, Tw.transition_all, Css.hover [ Tw.opacity_100 ] ]
+                                                    [ Attr.css [ Tw.m_4, Tw.p_2, Tw.bg_color Tw.teal_400, Tw.opacity_70, Tw.cursor_pointer, Tw.transition_all, Bp.md [ Tw.m_5, Tw.p_4 ], Css.hover [ Tw.opacity_100 ] ]
                                                     , Attr.class
                                                         (if model.chooseSequence == Default then
                                                             "selectedSequence"
@@ -938,7 +998,7 @@ view model =
                                                             ""
                                                         )
                                                     ]
-                                                    [ Html.h3 [] [ text "Default" ]
+                                                    [ Html.h3 [ Attr.css [ Tw.my_2, Bp.md [ Tw.my_4 ] ] ] [ text "Default" ]
                                                     , Html.div [ Attr.css [ Tw.flex, Tw.flex_wrap ] ]
                                                         (Util.defaultSequenceValues
                                                             |> String.split ","
@@ -968,7 +1028,7 @@ view model =
                                                 ]
                                             , Html.li [ onClick <| SelectSequence Option2, Attr.css [ Tw.w_2over4, Tw.border_2, Tw.border_color Tw.white, Tw.border_solid, Tw.border_r_0, Tw.border_t_0 ] ]
                                                 [ Html.div
-                                                    [ Attr.css [ Tw.m_5, Tw.p_4, Tw.bg_color Tw.teal_400, Tw.opacity_70, Tw.cursor_pointer, Tw.transition_all, Css.hover [ Tw.opacity_100 ] ]
+                                                    [ Attr.css [ Tw.m_4, Tw.p_2, Tw.bg_color Tw.teal_400, Tw.opacity_70, Tw.cursor_pointer, Tw.transition_all, Bp.md [ Tw.m_5, Tw.p_4 ], Css.hover [ Tw.opacity_100 ] ]
                                                     , Attr.class
                                                         (if model.chooseSequence == Option2 then
                                                             "selectedSequence"
@@ -977,7 +1037,7 @@ view model =
                                                             ""
                                                         )
                                                     ]
-                                                    [ Html.h3 [] [ text "Option 2" ]
+                                                    [ Html.h3 [ Attr.css [ Tw.my_2, Bp.md [ Tw.my_4 ] ] ] [ text "Option 2" ]
                                                     , Html.div [ Attr.css [ Tw.flex, Tw.flex_wrap ] ]
                                                         (Util.option2SequenceValues
                                                             |> String.split ","
@@ -1007,7 +1067,7 @@ view model =
                                                 ]
                                             , Html.li [ onClick <| SelectSequence Option3, Attr.css [ Tw.w_2over4, Tw.border_2, Tw.border_color Tw.white, Tw.border_solid, Tw.border_l_0, Tw.border_b_0 ] ]
                                                 [ Html.div
-                                                    [ Attr.css [ Tw.m_5, Tw.p_4, Tw.bg_color Tw.teal_400, Tw.opacity_70, Tw.cursor_pointer, Tw.transition_all, Css.hover [ Tw.opacity_100 ] ]
+                                                    [ Attr.css [ Tw.m_4, Tw.p_2, Tw.bg_color Tw.teal_400, Tw.opacity_70, Tw.cursor_pointer, Tw.transition_all, Bp.md [ Tw.m_5, Tw.p_4 ], Css.hover [ Tw.opacity_100 ] ]
                                                     , Attr.class
                                                         (if model.chooseSequence == Option3 then
                                                             "selectedSequence"
@@ -1016,7 +1076,7 @@ view model =
                                                             ""
                                                         )
                                                     ]
-                                                    [ Html.h3 [] [ text "Option 3" ]
+                                                    [ Html.h3 [ Attr.css [ Tw.my_2, Bp.md [ Tw.my_4 ] ] ] [ text "Option 3" ]
                                                     , Html.div [ Attr.css [ Tw.flex, Tw.flex_wrap ] ]
                                                         (Util.option3SequenceValues
                                                             |> String.split ","
@@ -1046,7 +1106,7 @@ view model =
                                                 ]
                                             , Html.li [ onClick <| SelectSequence Option4, Attr.css [ Tw.w_2over4, Tw.border_2, Tw.border_color Tw.white, Tw.border_solid, Tw.border_b_0, Tw.border_r_0 ] ]
                                                 [ Html.div
-                                                    [ Attr.css [ Tw.m_5, Tw.p_4, Tw.bg_color Tw.teal_400, Tw.opacity_70, Tw.cursor_pointer, Tw.transition_all, Css.hover [ Tw.opacity_100 ] ]
+                                                    [ Attr.css [ Tw.m_4, Tw.p_2, Tw.bg_color Tw.teal_400, Tw.opacity_70, Tw.cursor_pointer, Tw.transition_all, Bp.md [ Tw.m_5, Tw.p_4 ], Css.hover [ Tw.opacity_100 ] ]
                                                     , Attr.class
                                                         (if model.chooseSequence == Option4 then
                                                             "selectedSequence"
@@ -1055,7 +1115,7 @@ view model =
                                                             ""
                                                         )
                                                     ]
-                                                    [ Html.h3 [] [ text "Option 4" ]
+                                                    [ Html.h3 [ Attr.css [ Tw.my_2, Bp.md [ Tw.my_4 ] ] ] [ text "Option 4" ]
                                                     , Html.div [ Attr.css [ Tw.flex, Tw.flex_wrap ] ]
                                                         (Util.option4SequenceValues
                                                             |> String.split ","
@@ -1084,79 +1144,110 @@ view model =
                                                     ]
                                                 ]
                                             ]
+                                        , Html.div [ Attr.css [ Tw.my_4 ] ] [ buttonStyle |> viewButtonWithMsg SendSequence "Choose" ]
                                         ]
-                                    , Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ or add your own sequence ]" ]
-                                    , Html.div [ Attr.css [ Tw.max_w_sm, Tw.mx_auto, Tw.relative ] ]
-                                        [ inputStyle
-                                            |> withError model.error
-                                            |> withSendOnEnter
-                                                (Util.onEnter
-                                                    SendSequence
-                                                )
-                                            |> withPlaceholder "space between 99 9 14 55 32..."
-                                            |> viewInput StoreSequence
-                                                (model.sequence
-                                                    |> Maybe.withDefault ""
-                                                )
-                                        , Html.div [ Attr.css [ Tw.flex, Tw.opacity_80, Tw.rounded, Tw.text_xs, Tw.text_color Tw.white, Tw.flex_col, Tw.absolute, Tw.border, Tw.border_color Tw.white, Tw.neg_right_2over3, Tw.neg_top_2over4, Tw.border_solid, Tw.p_2 ] ]
-                                            [ Html.p [ Attr.css [ Tw.mt_0 ] ] [ text "It comes with couple of constrains:" ]
-                                            , Html.ul [ Attr.css [ Tw.list_none, Tw.p_0, Tw.m_0, Tw.text_left ] ]
-                                                [ Html.li [] [ text """- Enter 12 numbers separated by " " (space)""" ]
-                                                , Html.li [] [ text """- 3 digit max per item """ ]
-                                                ]
-                                            , Html.div [ Attr.css [ Tw.w_3, Tw.h_0_dot_5, Tw.bg_color Tw.white, Tw.absolute, Tw.top_2over4, Tw.neg_left_3 ] ] []
-                                            ]
-                                        ]
+                                    , Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ]
+                                        [ text "[ or add your own sequence ]", Html.input [ onClick EnableSequenceInput, Attr.type_ "checkbox", Attr.css [ Tw.form_checkbox, Tw.cursor_pointer, Tw.text_color Tw.teal_400, Tw.bg_color Tw.transparent, Tw.p_3, Tw.ml_3, Tw.border, Tw.border_solid, Tw.border_color Tw.teal_400, Css.focus [ Tw.outline_0, Tw.ring_color Tw.transparent, Tw.ring_0, Tw.ring_offset_0 ] ] ] [] ]
                                     , Html.div
-                                        [ Attr.css
-                                            [ Tw.mt_5
-                                            , Bp.sm
-                                                [ Tw.mx_auto
-                                                , Tw.w_full
-                                                , Tw.max_w_3xl
+                                        [ Attr.css [ Tw.relative ] ]
+                                        [ Html.div
+                                            [ Attr.css
+                                                [ Tw.max_w_sm
+                                                , Tw.mx_auto
+                                                , Tw.relative
                                                 ]
                                             ]
-                                        ]
-                                        [ case model.sequence of
-                                            Just input ->
-                                                Html.div [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight, Tw.flex, Tw.justify_center ] ]
-                                                    [ Html.div
-                                                        [ Attr.css [ Tw.p_4, Tw.bg_color Tw.teal_400, Tw.text_color Tw.white, Tw.cursor_pointer, Tw.transition_all ]
+                                            [ inputStyle
+                                                |> withError model.error
+                                                |> withSendOnEnter
+                                                    (Util.onEnter
+                                                        SendCustomSequence
+                                                    )
+                                                |> withPlaceholder "add numbers separated by space"
+                                                |> viewInput StoreSequence
+                                                    (model.sequence
+                                                        |> Maybe.withDefault ""
+                                                    )
+                                            , if model.shouldEnableCustomSequence then
+                                                Html.div [ Attr.css [ Tw.flex, Tw.opacity_80, Tw.rounded, Tw.text_xs, Tw.text_color Tw.white, Tw.flex_col, Tw.absolute, Tw.border, Tw.border_color Tw.white, Tw.neg_right_2over3, Tw.neg_top_2over4, Tw.border_solid, Tw.p_2 ] ]
+                                                    [ Html.p [ Attr.css [ Tw.mt_0 ] ] [ text "It comes with couple of constrains:" ]
+                                                    , Html.ul [ Attr.css [ Tw.list_none, Tw.p_0, Tw.m_0, Tw.text_left ] ]
+                                                        [ Html.li [] [ text """- Enter 12 numbers separated by " " (space)""" ]
+                                                        , Html.li [] [ text """- 3 digit max per item """ ]
                                                         ]
-                                                        [ Html.p [ Attr.css [ Tw.mt_0 ] ] [ text "Your Sequence" ]
-                                                        , Html.div
-                                                            [ Attr.css [ Tw.flex, Tw.flex_wrap ] ]
-                                                            (input
-                                                                |> String.split "-"
-                                                                |> List.map
-                                                                    (\intAsStr ->
-                                                                        Html.p
-                                                                            [ Attr.css
-                                                                                [ Tw.flex
-                                                                                , Tw.m_0
-                                                                                , Tw.h_5
-                                                                                , Tw.border_color Tw.white
-                                                                                , Tw.border_solid
-                                                                                , Tw.border_2
-                                                                                , Tw.justify_center
-                                                                                , Tw.w_1over4
-                                                                                , Tw.items_center
-                                                                                , Tw.p_0
-                                                                                , Tw.text_sm
-                                                                                , Tw.overflow_hidden
-                                                                                , Tw.relative
-                                                                                , Tw.cursor_pointer
-                                                                                ]
-                                                                            ]
-                                                                            [ text intAsStr ]
-                                                                    )
-                                                            )
-                                                        ]
+                                                    , Html.div [ Attr.css [ Tw.w_3, Tw.h_0_dot_5, Tw.bg_color Tw.white, Tw.absolute, Tw.top_2over4, Tw.neg_left_3 ] ] []
                                                     ]
 
-                                            Nothing ->
+                                              else
                                                 text ""
-                                        , buttonStyle |> viewButtonWithMsg SendSequence "Create"
+                                            ]
+                                        , Html.div
+                                            [ Attr.css
+                                                [ Tw.mt_5
+                                                , Bp.sm
+                                                    [ Tw.mx_auto
+                                                    , Tw.w_full
+                                                    , Tw.max_w_3xl
+                                                    ]
+                                                ]
+                                            ]
+                                            [ case model.sequence of
+                                                Just input ->
+                                                    Html.div [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight, Tw.flex, Tw.justify_center ] ]
+                                                        [ Html.div
+                                                            [ Attr.css [ Tw.p_4, Tw.bg_color Tw.teal_400, Tw.text_color Tw.white, Tw.cursor_pointer, Tw.transition_all ]
+                                                            ]
+                                                            [ Html.p [ Attr.css [ Tw.mt_0 ] ] [ text "Your Sequence" ]
+                                                            , Html.div
+                                                                [ Attr.css [ Tw.flex, Tw.flex_wrap ] ]
+                                                                (input
+                                                                    |> String.split "-"
+                                                                    |> List.map
+                                                                        (\intAsStr ->
+                                                                            Html.p
+                                                                                [ Attr.css
+                                                                                    [ Tw.flex
+                                                                                    , Tw.m_0
+                                                                                    , Tw.h_5
+                                                                                    , Tw.border_color Tw.white
+                                                                                    , Tw.border_solid
+                                                                                    , Tw.border_2
+                                                                                    , Tw.justify_center
+                                                                                    , Tw.w_1over4
+                                                                                    , Tw.items_center
+                                                                                    , Tw.p_0
+                                                                                    , Tw.text_sm
+                                                                                    , Tw.overflow_hidden
+                                                                                    , Tw.relative
+                                                                                    , Tw.cursor_pointer
+                                                                                    ]
+                                                                                ]
+                                                                                [ text intAsStr ]
+                                                                        )
+                                                                )
+                                                            ]
+                                                        ]
+
+                                                Nothing ->
+                                                    text ""
+                                            , buttonStyle |> viewButtonWithMsg SendCustomSequence "Create"
+                                            ]
+                                        , if not <| model.shouldEnableCustomSequence then
+                                            -- Overlay el
+                                            Html.div
+                                                [ Attr.css
+                                                    [ Tw.absolute
+                                                    , Tw.w_full
+                                                    , Tw.h_full
+                                                    , Tw.top_0
+                                                    , Tw.opacity_80
+                                                    , Tw.bg_color Tw.black
+                                                    ]
+                                                ]
+                                                []
+
+                                          else
+                                            text ""
                                         ]
                                     ]
                                 ]

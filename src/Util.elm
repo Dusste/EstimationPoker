@@ -343,6 +343,9 @@ fromSequenceToCards seq =
         Option4 ->
             fromStringToCards option4SequenceValues
 
+        CustomSequence str ->
+            fromStringToCards str
+
 
 roundFloat : Float -> Int -> String
 roundFloat flt roundToNumberOfPlaces =

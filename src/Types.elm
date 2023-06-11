@@ -4,7 +4,6 @@ import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
 import Lamdera exposing (ClientId, SessionId)
-import Task exposing (sequence)
 import Time
 import Url exposing (Url)
 
@@ -24,6 +23,7 @@ type alias FrontendModel =
     , users : List User
     , sessionId : Maybe SessionId
     , clock : Int
+    , shouldEnableCustomSequence : Bool
     , storyCount : Int
     , editedStory : Story
     , sequence : Maybe String
@@ -79,6 +79,7 @@ type CommonSequence
     | Option2
     | Option3
     | Option4
+    | CustomSequence SequenceString
 
 
 type Route
@@ -188,6 +189,8 @@ type FrontendMsg
     | EditStory StoryId StoryName
     | EditRoomName ValidTextField
     | AddStory
+    | EnableSequenceInput
+    | SendCustomSequence
     | NoOp
 
 
@@ -214,6 +217,7 @@ type ToBackend
     | SignalChartAnimation RoomParam
     | SignalRoomNameEdit ValidTextField RoomParam
     | SendSequenceToBE CommonSequence RoomParam
+    | SendCustomSequenceToBE SequenceString RoomParam
 
 
 type BackendMsg

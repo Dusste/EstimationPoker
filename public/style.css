@@ -43,7 +43,7 @@ input {
 }
 
 .selectedSequence {
-    transform: scale(1.2);
+    transform: scale(1.188);
     opacity: 1!important;
 }
 
