@@ -5,6 +5,7 @@
 - Enter your name (you will be room admin)
 - Enter a room name
 - Add stories that you want to estimate
+- Land on choose story sequence step - there are common set of sequences or you can add your own custom sequence
 - You are presented with certain range of numbers that represents story points for each story
 - Share room link with your co-workers
 - They will add their names and be redirected to voting page
