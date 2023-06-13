@@ -2,6 +2,7 @@ module Frontend exposing (..)
 
 import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav
+import Button
 import Css
 import Css.Global
 import Donut
@@ -690,7 +691,12 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ buttonStyle |> viewButtonWithMsg (SendName Admin) "Save" ]
+                                    [ Button.new
+                                        |> Button.withText "Save"
+                                        |> Button.withPrimaryStyle
+                                        |> Button.withOnClick (SendName Admin)
+                                        |> Button.toHtml
+                                    ]
                                 ]
 
                         EnterNameStep ->
@@ -755,7 +761,12 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ buttonStyle |> viewButtonWithMsg (SendName Employee) "Save" ]
+                                    [ Button.new
+                                        |> Button.withText "Save"
+                                        |> Button.withPrimaryStyle
+                                        |> Button.withOnClick (SendName Employee)
+                                        |> Button.toHtml
+                                    ]
                                 ]
 
                         CreateRoomStep ->
@@ -816,7 +827,12 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ buttonStyle |> viewButtonWithMsg SendRoom "Create" ]
+                                    [ Button.new
+                                        |> Button.withText "Create"
+                                        |> Button.withPrimaryStyle
+                                        |> Button.withOnClick SendRoom
+                                        |> Button.toHtml
+                                    ]
                                 ]
 
                         CreateStoryStep ->
@@ -903,8 +919,16 @@ view model =
                                         , Tw.justify_center
                                         ]
                                     ]
-                                    [ buttonStyle |> viewButtonWithMsg SendStory "Add New"
-                                    , buttonStyle |> viewButtonWithMsg SaveStory "Save"
+                                    [ Button.new
+                                        |> Button.withText "Add New"
+                                        |> Button.withPrimaryStyle
+                                        |> Button.withOnClick SendStory
+                                        |> Button.toHtml
+                                    , Button.new
+                                        |> Button.withText "Save"
+                                        |> Button.withPrimaryStyle
+                                        |> Button.withOnClick SaveStory
+                                        |> Button.toHtml
                                     ]
                                 ]
 
@@ -1147,7 +1171,13 @@ view model =
                                                     ]
                                                 ]
                                             ]
-                                        , Html.div [ Attr.css [ Tw.my_4 ] ] [ buttonStyle |> viewButtonWithMsg SendSequence "Choose" ]
+                                        , Html.div [ Attr.css [ Tw.my_4 ] ]
+                                            [ Button.new
+                                                |> Button.withText "Choose"
+                                                |> Button.withPrimaryStyle
+                                                |> Button.withOnClick SendSequence
+                                                |> Button.toHtml
+                                            ]
                                         ]
                                     , Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ]
                                         [ text "[ or add your own sequence ]", Html.input [ onClick EnableSequenceInput, Attr.type_ "checkbox", Attr.css [ Tw.form_checkbox, Tw.cursor_pointer, Tw.text_color Tw.teal_400, Tw.bg_color Tw.transparent, Tw.p_3, Tw.ml_3, Tw.border, Tw.border_solid, Tw.border_color Tw.teal_400, Css.focus [ Tw.outline_0, Tw.ring_color Tw.transparent, Tw.ring_0, Tw.ring_offset_0 ] ] ] [] ]
@@ -1272,7 +1302,11 @@ view model =
                                                                     )
                                                                 ]
                                                             ]
-                                                        , buttonStyle |> viewButtonWithMsg SendCustomSequence "Create"
+                                                        , Button.new
+                                                            |> Button.withText "Create"
+                                                            |> Button.withPrimaryStyle
+                                                            |> Button.withOnClick SendCustomSequence
+                                                            |> Button.toHtml
                                                         ]
 
                                                 Reject str ->
@@ -1280,7 +1314,7 @@ view model =
                                                         numbersUntilValidSequence =
                                                             str |> String.split "-" |> List.filterMap String.toInt |> List.length |> (-) 12
                                                     in
-                                                    Html.p [ Attr.css [ Tw.text_color Tw.orange_400 ] ] [ text <| String.fromInt numbersUntilValidSequence ++ " " ++ Util.pluralize numbersUntilValidSequence "number" ++ " to go" ]
+                                                    Html.p [ Attr.css [ Tw.text_color Tw.orange_400 ] ] [ text <| String.fromInt numbersUntilValidSequence ++ " " ++ Util.pluralize (toFloat numbersUntilValidSequence) "number" ++ " to go" ]
 
                                                 Inactive ->
                                                     text ""
@@ -1369,7 +1403,11 @@ view model =
                                                                         (model.roomName
                                                                             |> Maybe.withDefault ""
                                                                         )
-                                                                , Html.button [ Attr.css buttonEditStyle, onClick SendEditedRoom ] [ text "Save" ]
+                                                                , Button.new
+                                                                    |> Button.withText "Save"
+                                                                    |> Button.withEditStyle
+                                                                    |> Button.withOnClick SendEditedRoom
+                                                                    |> Button.toHtml
                                                                 ]
 
                                                         Nothing ->
@@ -1469,27 +1507,55 @@ view model =
                                                                     , Bp.lg [ Tw.justify_start ]
                                                                     ]
                                                                 ]
-                                                                [ buttonStyle |> viewButtonWithMsg ResetTime "Reset timer"
+                                                                [ Button.new
+                                                                    |> Button.withText "Reset timer"
+                                                                    |> Button.withPrimaryStyle
+                                                                    |> Button.withOnClick ResetTime
+                                                                    |> Button.toHtml
                                                                 , if model.users |> List.any (\user -> user.voteState /= NotVoted) then
                                                                     if model.shouldFlipCards then
-                                                                        buttonStyle |> viewButtonWithMsg HideCards "Hide Votes "
+                                                                        Button.new
+                                                                            |> Button.withText "Hide Votes "
+                                                                            |> Button.withPrimaryStyle
+                                                                            |> Button.withOnClick HideCards
+                                                                            |> Button.toHtml
 
                                                                     else
-                                                                        buttonStyle |> viewButtonWithMsg ShowCards "Show votes"
+                                                                        Button.new
+                                                                            |> Button.withText "Show votes"
+                                                                            |> Button.withPrimaryStyle
+                                                                            |> Button.withOnClick ShowCards
+                                                                            |> Button.toHtml
 
                                                                   else
                                                                     text ""
-                                                                , buttonStyle |> viewButtonWithMsg ClearVotes "Clear votes"
-                                                                , buttonStyle |> viewButtonWithMsg SkipStory "Skip story"
+                                                                , Button.new
+                                                                    |> Button.withText "Clear votes"
+                                                                    |> Button.withPrimaryStyle
+                                                                    |> Button.withOnClick ClearVotes
+                                                                    |> Button.toHtml
+                                                                , Button.new
+                                                                    |> Button.withText "Skip story"
+                                                                    |> Button.withPrimaryStyle
+                                                                    |> Button.withOnClick SkipStory
+                                                                    |> Button.toHtml
                                                                 , if model.users |> List.all (\user -> not <| user.voteState == NotVoted) then
-                                                                    buttonStyle |> viewButtonWithMsg FinishVoting "Finish Voting"
+                                                                    Button.new
+                                                                        |> Button.withText "Finish Voting"
+                                                                        |> Button.withPrimaryStyle
+                                                                        |> Button.withOnClick FinishVoting
+                                                                        |> Button.toHtml
 
                                                                   else
                                                                     text ""
                                                                 ]
 
                                                         else
-                                                            buttonStyle |> viewButtonWithMsg StartTime "Start timer"
+                                                            Button.new
+                                                                |> Button.withText "Start timer"
+                                                                |> Button.withPrimaryStyle
+                                                                |> Button.withOnClick StartTime
+                                                                |> Button.toHtml
 
                                                       else
                                                         text ""
@@ -1502,7 +1568,11 @@ view model =
                                         [ Html.h4 [ Attr.css [ Tw.text_3xl, Tw.m_0, Tw.mb_4 ] ] [ text "Stories:" ]
                                         , case model.credentials of
                                             Admin ->
-                                                buttonStyle |> viewButtonWithMsg AddStory "+ 1"
+                                                Button.new
+                                                    |> Button.withText "+ 1"
+                                                    |> Button.withPrimaryStyle
+                                                    |> Button.withOnClick AddStory
+                                                    |> Button.toHtml
 
                                             Employee ->
                                                 text ""
@@ -1542,7 +1612,11 @@ view model =
                                                                                         )
                                                                                     ]
                                                                                     []
-                                                                                , Html.button [ Attr.css buttonEditStyle, onClick (SendEditedStory storyId) ] [ text "Save" ]
+                                                                                , Button.new
+                                                                                    |> Button.withText "Save"
+                                                                                    |> Button.withEditStyle
+                                                                                    |> Button.withOnClick (SendEditedStory storyId)
+                                                                                    |> Button.toHtml
                                                                                 ]
 
                                                                           else
@@ -1614,7 +1688,11 @@ view model =
                                                 ]
                                                 []
                                             ]
-                                        , buttonStyle |> withReadmeInput |> viewButtonWithMsg CopyRoomUrl "Copy URL"
+                                        , Button.new
+                                            |> Button.withText "Copy URL"
+                                            |> Button.withReadOnlyInputStyle
+                                            |> Button.withOnClick CopyRoomUrl
+                                            |> Button.toHtml
                                         , Html.div [ Attr.css [ Tw.mt_6 ] ]
                                             [ Html.h4 [ Attr.css [ Tw.text_3xl, Tw.m_0, Tw.mb_4 ] ] [ text "Team:" ]
                                             , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.flex_col, Tw.text_2xl, Tw.gap_4 ] ]
@@ -1844,7 +1922,7 @@ viewCharts model =
                                                         [ Html.span [ Attr.css [ Css.width (Css.px 31), Css.height (Css.px 31), Tw.bg_color (Util.getColor int), Tw.hidden, Bp.lg [ Tw.block ] ] ] []
                                                         , Html.span [ Attr.css [ Css.minWidth (Css.px 40) ] ] [ entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text ]
                                                         , Html.span [ Attr.css [ Css.minWidth (Css.px 57) ] ] [ text <| Util.roundFloat entry.percentage 2 ++ "%" ]
-                                                        , Html.span [ Attr.css [ Css.minWidth (Css.px 123) ] ] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " " ++ pluralification entry.numOfVoters "player" ++ ")" ]
+                                                        , Html.span [ Attr.css [ Css.minWidth (Css.px 123) ] ] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " " ++ Util.pluralize entry.numOfVoters "player" ++ ")" ]
                                                         ]
                                                     , Html.div [ Attr.css [ Tw.w_full, Tw.bg_color Tw.slate_900, Tw.h_8 ] ]
                                                         [ Html.div
@@ -1897,7 +1975,7 @@ viewCharts model =
                                                             [ Html.span [ Attr.css [ Css.width (Css.px 31), Css.height (Css.px 31), Tw.bg_color (Util.getColor int) ] ] []
                                                             , Html.span [ Attr.css [ Css.minWidth (Css.px 40) ] ] [ entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text ]
                                                             , Html.span [ Attr.css [ Css.minWidth (Css.px 57) ] ] [ text <| Util.roundFloat entry.percentage 2 ++ "%" ]
-                                                            , Html.span [ Attr.css [ Css.minWidth (Css.px 123) ] ] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " " ++ pluralification entry.numOfVoters "player" ++ ")" ]
+                                                            , Html.span [ Attr.css [ Css.minWidth (Css.px 123) ] ] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " " ++ Util.pluralize entry.numOfVoters "player" ++ ")" ]
                                                             ]
                                                         ]
                                                     ]
@@ -1910,7 +1988,11 @@ viewCharts model =
             Nothing ->
                 Html.h4 [] [ text "This story was skipped" ]
         , if model.shouldShowCharts && List.length model.stories > 1 && model.credentials == Admin then
-            buttonStyle |> viewButtonWithMsg NextStory "Next Story"
+            Button.new
+                |> Button.withText "Next Story"
+                |> Button.withPrimaryStyle
+                |> Button.withOnClick NextStory
+                |> Button.toHtml
 
           else if model.shouldShowCharts && List.length model.stories == 1 && model.credentials == Admin then
             text """[ Seems you are on the last story, add more on "+1" ]"""
@@ -1918,56 +2000,6 @@ viewCharts model =
           else
             text ""
         ]
-
-
-buttonStyle : List Css.Style
-buttonStyle =
-    [ Tw.bg_color Tw.teal_400
-    , Tw.text_color Tw.white
-    , Tw.py_1
-    , Tw.px_4
-    , Tw.text_xl
-    , Tw.border
-    , Tw.border_color Tw.teal_400
-    , Tw.rounded
-    , Tw.cursor_pointer
-    , Tw.transition_all
-    , Css.hover
-        [ Tw.bg_color Tw.teal_700
-        , Tw.border_color Tw.teal_400
-        , Tw.border_color Tw.transparent
-        ]
-    ]
-
-
-buttonEditStyle : List Css.Style
-buttonEditStyle =
-    [ Tw.bg_color Tw.teal_400
-    , Tw.text_color Tw.white
-    , Tw.py_2
-    , Tw.px_2
-    , Tw.text_xl
-    , Tw.border
-    , Tw.border_color Tw.teal_400
-    , Tw.rounded_sm
-    , Tw.rounded_l_none
-    , Tw.cursor_pointer
-    , Tw.transition_all
-    , Css.hover
-        [ Tw.bg_color Tw.teal_700
-        , Tw.border_color Tw.teal_400
-        , Tw.border_color Tw.transparent
-        ]
-    ]
-
-
-pluralification : Float -> String -> String
-pluralification count initial =
-    if count == 1 then
-        initial
-
-    else
-        initial ++ "s"
 
 
 inputStyle : List Css.Style
@@ -2062,11 +2094,6 @@ viewInput toMsg value attrs =
             ++ attrs
         )
         []
-
-
-viewButtonWithMsg : FrontendMsg -> String -> List Css.Style -> Html FrontendMsg
-viewButtonWithMsg msg label styles =
-    Html.button [ Attr.css styles, onClick msg ] [ text label ]
 
 
 viewNotifications : Model -> Html FrontendMsg

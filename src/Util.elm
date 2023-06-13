@@ -369,7 +369,7 @@ roundFloat flt roundToNumberOfPlaces =
             [ firstPart, slicedSecondPart ] |> String.join "."
 
 
-pluralize : Int -> String -> String
+pluralize : Float -> String -> String
 pluralize num initialString =
     if num == 1 then
         initialString
