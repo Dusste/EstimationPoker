@@ -9,6 +9,7 @@ import Donut
 import Html.Styled as Html exposing (Attribute, Html, text)
 import Html.Styled.Attributes as Attr
 import Html.Styled.Events exposing (onClick, onInput)
+import Input
 import Lamdera exposing (sendToBackend)
 import Ports
 import Process
@@ -25,20 +26,6 @@ import Util
 
 type alias Model =
     FrontendModel
-
-
-validateInput : Maybe String -> Result InvalidTextFiled ValidTextField
-validateInput maybeStr =
-    case maybeStr of
-        Nothing ->
-            Err <| Just "Input is empty"
-
-        Just str ->
-            let
-                trimmedStr =
-                    String.trim str
-            in
-            Ok trimmedStr
 
 
 app =
@@ -75,7 +62,7 @@ initialModel url key =
     , credentials = Admin
     , users = []
     , shouldEnableCustomSequence = False
-    , sequence = Inactive
+    , sequence = Reject
     , chooseSequence = Default
     , sessionId = Nothing
     , clock = 0
@@ -152,9 +139,9 @@ update msg model =
                     ( model, Cmd.none )
 
         SendName cred ->
-            case validateInput model.name of
+            case Util.validateInput model.name of
                 Err errorMessage ->
-                    ( { model | error = errorMessage }, Cmd.none )
+                    ( { model | error = Just errorMessage }, Cmd.none )
 
                 Ok validInput ->
                     case cred of
@@ -174,9 +161,9 @@ update msg model =
                                     ( model, Cmd.none )
 
         SendRoom ->
-            case validateInput model.roomName of
+            case Util.validateInput model.roomName of
                 Err errorMessage ->
-                    ( { model | error = errorMessage }, Cmd.none )
+                    ( { model | error = Just errorMessage }, Cmd.none )
 
                 Ok validInput ->
                     let
@@ -197,9 +184,9 @@ update msg model =
                     model.roomId
                         |> Maybe.withDefault 1
             in
-            case validateInput model.roomName of
+            case Util.validateInput model.roomName of
                 Err errorMessage ->
-                    ( { model | error = errorMessage }, Cmd.none )
+                    ( { model | error = Just errorMessage }, Cmd.none )
 
                 Ok validInput ->
                     ( { model | editRoomName = Nothing }, sendToBackend <| SignalRoomNameEdit validInput roomId )
@@ -391,7 +378,7 @@ update msg model =
                                 |> (<=) sizeLimit
                     in
                     if input == "" || String.startsWith " " input || String.startsWith "-" input then
-                        Inactive
+                        Reject
 
                     else if hasReachedSizeLimit then
                         Accept
@@ -404,16 +391,16 @@ update msg model =
                             )
 
                     else if String.endsWith "- " str then
-                        Reject <| String.dropRight 1 input ++ "-"
+                        Try <| String.dropRight 1 input ++ "-"
 
                     else if String.endsWith "--" str then
-                        Reject <| String.dropRight 1 input
+                        Try <| String.dropRight 1 input
 
                     else if String.endsWith " " str then
-                        Reject <| input ++ "-"
+                        Try <| input ++ "-"
 
                     else
-                        Reject
+                        Try
                             (input
                                 |> String.filter (\ch -> Char.isDigit ch || ch == '-')
                             )
@@ -449,10 +436,10 @@ update msg model =
                         ]
                     )
 
-                Reject _ ->
+                Try _ ->
                     ( model, Cmd.none )
 
-                Inactive ->
+                Reject ->
                     ( model, Cmd.none )
 
         SelectSequence option ->
@@ -517,6 +504,9 @@ update msg model =
 
         EnableSequenceInput ->
             ( { model | shouldEnableCustomSequence = not <| model.shouldEnableCustomSequence }, Cmd.none )
+
+        NoOpWithText _ ->
+            ( model, Cmd.none )
 
 
 updateFromBackend : ToFrontend -> Model -> ( Model, Cmd FrontendMsg )
@@ -667,19 +657,19 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ You're about to become an admin ]" ]
-                                    , inputStyle
-                                        |> withError model.error
-                                        |> withSendOnEnter
-                                            (Util.onEnterWithCred
-                                                Admin
-                                                SendName
-                                            )
-                                        |> withPlaceholder "eq: Steve"
-                                        |> viewInput StoreName
+                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ]
+                                        [ text "[ You're about to become an admin ]" ]
+                                    , Input.new
+                                        |> Input.withHandleInput
+                                            StoreName
                                             (model.name
                                                 |> Maybe.withDefault ""
                                             )
+                                        |> Input.withSendOnEnter (SendName Admin)
+                                        |> Input.withPlaceholder "eq: Steve"
+                                        |> Input.withPrimaryStyles
+                                        |> Input.withError model.error
+                                        |> Input.toHtml
                                     ]
                                 , Html.div
                                     [ Attr.css
@@ -738,18 +728,17 @@ view model =
                                     ]
                                     [ Html.p [ Attr.css [ Tw.mt_0, Tw.mb_4, Tw.text_2xl ] ] [ text "Add your name" ]
                                     , Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ After that we will redirect you to team's room ]" ]
-                                    , inputStyle
-                                        |> withError model.error
-                                        |> withSendOnEnter
-                                            (Util.onEnterWithCred
-                                                Employee
-                                                SendName
-                                            )
-                                        |> withPlaceholder "eq: Mark"
-                                        |> viewInput StoreName
+                                    , Input.new
+                                        |> Input.withHandleInput
+                                            StoreName
                                             (model.name
                                                 |> Maybe.withDefault ""
                                             )
+                                        |> Input.withSendOnEnter (SendName Employee)
+                                        |> Input.withPlaceholder "eq: Mark"
+                                        |> Input.withPrimaryStyles
+                                        |> Input.withError model.error
+                                        |> Input.toHtml
                                     ]
                                 , Html.div
                                     [ Attr.css
@@ -805,17 +794,17 @@ view model =
                                         ]
                                     ]
                                     [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ Place where you can vote for stories ]" ]
-                                    , inputStyle
-                                        |> withError model.error
-                                        |> withSendOnEnter
-                                            (Util.onEnter
-                                                SendRoom
-                                            )
-                                        |> withPlaceholder "eq: Engineering ninjas !"
-                                        |> viewInput StoreRoom
+                                    , Input.new
+                                        |> Input.withHandleInput
+                                            StoreRoom
                                             (model.roomName
                                                 |> Maybe.withDefault ""
                                             )
+                                        |> Input.withSendOnEnter SendRoom
+                                        |> Input.withPlaceholder "eq: Engineering ninjas !"
+                                        |> Input.withPrimaryStyles
+                                        |> Input.withError model.error
+                                        |> Input.toHtml
                                     ]
                                 , Html.div
                                     [ Attr.css
@@ -871,33 +860,9 @@ view model =
                                         ]
                                     ]
                                     [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ Add multiple or one story ]" ]
-                                    , Html.div [ Attr.css [ Tw.relative, Tw.mx_auto ] ]
-                                        [ Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.text_2xl, Tw.gap_4, Tw.absolute, Tw.w_full ] ]
-                                            (model.stories
-                                                |> List.map
-                                                    (\story ->
-                                                        case story of
-                                                            Story _ storyName ->
-                                                                Html.li
-                                                                    [ Attr.css
-                                                                        [ Tw.transition_all
-                                                                        , Tw.absolute
-                                                                        , Tw.w_full
-                                                                        ]
-                                                                    , Attr.class
-                                                                        "hide-after-n"
-                                                                    ]
-                                                                    [ text storyName ]
-
-                                                            NoStory _ ->
-                                                                text ""
-                                                    )
-                                            )
-                                        ]
-                                    , Html.input
-                                        [ Attr.css <| withError model.error inputStyle
-                                        , onInput StoreStory
-                                        , Attr.value
+                                    , Input.new
+                                        |> Input.withHandleInput
+                                            StoreStory
                                             (case model.story of
                                                 Story _ storyName ->
                                                     storyName
@@ -905,8 +870,10 @@ view model =
                                                 NoStory _ ->
                                                     ""
                                             )
-                                        ]
-                                        []
+                                        |> Input.withPlaceholder "eq: Task 123 ?"
+                                        |> Input.withPrimaryStyles
+                                        |> Input.withError model.error
+                                        |> Input.toHtml
                                     ]
                                 , Html.div
                                     [ Attr.css
@@ -1190,24 +1157,24 @@ view model =
                                                 , Tw.relative
                                                 ]
                                             ]
-                                            [ inputStyle
-                                                |> withError model.error
-                                                |> withSendOnEnter
-                                                    (Util.onEnter
-                                                        SendCustomSequence
-                                                    )
-                                                |> withPlaceholder "eg: 23 47 86 21 90"
-                                                |> viewInput StoreSequence
+                                            [ Input.new
+                                                |> Input.withHandleInput
+                                                    StoreSequence
                                                     (case model.sequence of
                                                         Accept str ->
                                                             str
 
-                                                        Reject st ->
+                                                        Try st ->
                                                             st
 
-                                                        Inactive ->
+                                                        Reject ->
                                                             ""
                                                     )
+                                                |> Input.withSendOnEnter SendCustomSequence
+                                                |> Input.withPlaceholder "eg: 23 47 86 21 90"
+                                                |> Input.withPrimaryStyles
+                                                |> Input.withError model.error
+                                                |> Input.toHtml
                                             , if model.shouldEnableCustomSequence then
                                                 Html.div
                                                     [ Attr.css
@@ -1309,14 +1276,14 @@ view model =
                                                             |> Button.toHtml
                                                         ]
 
-                                                Reject str ->
+                                                Try str ->
                                                     let
                                                         numbersUntilValidSequence =
                                                             str |> String.split "-" |> List.filterMap String.toInt |> List.length |> (-) 12
                                                     in
                                                     Html.p [ Attr.css [ Tw.text_color Tw.orange_400 ] ] [ text <| String.fromInt numbersUntilValidSequence ++ " " ++ Util.pluralize (toFloat numbersUntilValidSequence) "number" ++ " to go" ]
 
-                                                Inactive ->
+                                                Reject ->
                                                     text ""
                                             ]
                                         , if not <| model.shouldEnableCustomSequence then
@@ -1393,16 +1360,16 @@ view model =
                                                     case model.editRoomName of
                                                         Just _ ->
                                                             Html.div [ Attr.css [ Tw.flex, Tw.items_center, Tw.self_start ] ]
-                                                                [ inputEditStyle
-                                                                    |> withError model.error
-                                                                    |> withSendOnEnter
-                                                                        (Util.onEnter
-                                                                            SendRoom
-                                                                        )
-                                                                    |> viewInput StoreRoom
+                                                                [ Input.new
+                                                                    |> Input.withHandleInput
+                                                                        StoreRoom
                                                                         (model.roomName
                                                                             |> Maybe.withDefault ""
                                                                         )
+                                                                    |> Input.withSendOnEnter SendEditedRoom
+                                                                    |> Input.withEditStyle
+                                                                    |> Input.withError model.error
+                                                                    |> Input.toHtml
                                                                 , Button.new
                                                                     |> Button.withText "Save"
                                                                     |> Button.withEditStyle
@@ -1599,10 +1566,9 @@ view model =
                                                                         ]
                                                                         [ if model.editedStory == Story storyId storyName then
                                                                             Html.div [ Attr.css [ Tw.flex, Tw.items_center, Tw.self_start, Tw.w_full ] ]
-                                                                                [ Html.input
-                                                                                    [ Attr.css <| withError model.error inputEditStyle
-                                                                                    , onInput StoreStory
-                                                                                    , Attr.value
+                                                                                [ Input.new
+                                                                                    |> Input.withHandleInput
+                                                                                        StoreStory
                                                                                         (case model.story of
                                                                                             Story _ sn ->
                                                                                                 sn
@@ -1610,8 +1576,10 @@ view model =
                                                                                             NoStory _ ->
                                                                                                 ""
                                                                                         )
-                                                                                    ]
-                                                                                    []
+                                                                                    |> Input.withSendOnEnter (SendEditedStory storyId)
+                                                                                    |> Input.withEditStyle
+                                                                                    |> Input.withError model.error
+                                                                                    |> Input.toHtml
                                                                                 , Button.new
                                                                                     |> Button.withText "Save"
                                                                                     |> Button.withEditStyle
@@ -2000,100 +1968,6 @@ viewCharts model =
           else
             text ""
         ]
-
-
-inputStyle : List Css.Style
-inputStyle =
-    [ Tw.block
-    , Tw.w_full
-    , Tw.form_input
-    , Tw.rounded_md
-    , Tw.border_0
-    , Tw.py_1_dot_5
-    , Tw.h_10
-    , Tw.text_color Tw.gray_900
-    , Tw.shadow_sm
-    , Tw.ring_1
-    , Tw.ring_inset
-    , Tw.placeholder_color Tw.gray_300
-    , Tw.text_lg
-    , Tw.ring_color Tw.gray_300
-    , Css.focus
-        [ Tw.ring_2
-        , Tw.ring_inset
-        , Tw.ring_color Tw.teal_400
-        ]
-    ]
-
-
-inputEditStyle : List Css.Style
-inputEditStyle =
-    [ Tw.block
-    , Tw.form_input
-    , Tw.rounded_sm
-    , Tw.rounded_r_none
-    , Tw.border_0
-    , Tw.py_2
-    , Tw.px_2
-    , Tw.shadow_sm
-    , Tw.ring_1
-    , Tw.h_12
-    , Tw.text_2xl
-    , Tw.flex_1
-    , Tw.font_light
-    , Tw.ring_inset
-    , Tw.ring_color Tw.gray_300
-    , Tw.bg_color Tw.slate_900
-    , Tw.text_color Tw.white
-    , Css.focus
-        [ Tw.outline_0
-        , Tw.ring_0
-        ]
-    ]
-
-
-withReadmeInput : List Css.Style -> List Css.Style
-withReadmeInput basicStyle =
-    basicStyle ++ [ Tw.rounded_t_none ]
-
-
-withError : InvalidTextFiled -> List Css.Style -> List Css.Style
-withError maybeError basicStyle =
-    case maybeError of
-        Just _ ->
-            basicStyle
-                ++ [ Tw.border_2
-                   , Tw.border_color Tw.red_500
-                   , Tw.border_solid
-                   , Css.focus
-                        [ Tw.border_0
-                        ]
-                   ]
-
-        Nothing ->
-            basicStyle
-
-
-withSendOnEnter : Attribute FrontendMsg -> List Css.Style -> List (Attribute FrontendMsg)
-withSendOnEnter attr styles =
-    [ attr, Attr.css styles ]
-
-
-withPlaceholder : String -> List (Attribute FrontendMsg) -> List (Attribute FrontendMsg)
-withPlaceholder str attr =
-    attr ++ [ Attr.placeholder str ]
-
-
-viewInput : (String -> FrontendMsg) -> String -> List (Attribute FrontendMsg) -> Html FrontendMsg
-viewInput toMsg value attrs =
-    Html.input
-        ([ Attr.type_ "text"
-         , onInput toMsg
-         , Attr.value value
-         ]
-            ++ attrs
-        )
-        []
 
 
 viewNotifications : Model -> Html FrontendMsg

@@ -402,3 +402,24 @@ onEnter msg =
                 Json.fail "not ENTER"
     in
     on "keydown" (Json.andThen isEnter keyCode)
+
+
+validateInput : Maybe String -> Result String ValidTextField
+validateInput maybeStr =
+    let
+        toResult : Maybe String -> Result String ValidTextField
+        toResult ms =
+            ms |> Result.fromMaybe "Input is invalid"
+
+        toValidResult : ValidTextField -> Result String ValidTextField
+        toValidResult str =
+            if String.trim str |> String.isEmpty then
+                Err "Input is empty"
+
+            else
+                Ok <| String.trim str
+    in
+    maybeStr
+        |> toResult
+        |> Result.andThen
+            toValidResult

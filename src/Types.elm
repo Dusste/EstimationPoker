@@ -84,8 +84,8 @@ type CommonSequence
 
 type Sequence
     = Accept SequenceString
-    | Reject String
-    | Inactive
+    | Try String
+    | Reject
 
 
 type Route
@@ -198,6 +198,7 @@ type FrontendMsg
     | EnableSequenceInput
     | SendCustomSequence
     | NoOp
+    | NoOpWithText String
 
 
 type Chart

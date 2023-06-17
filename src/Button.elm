@@ -1,10 +1,9 @@
 module Button exposing (..)
 
 import Css
-import Html.Styled as Html exposing (Attribute, Html, text)
+import Html.Styled as Html exposing (Html, text)
 import Html.Styled.Attributes as Attr
-import Html.Styled.Events exposing (onClick, onInput)
-import Tailwind.Breakpoints as Bp
+import Html.Styled.Events exposing (onClick)
 import Tailwind.Theme as Tw
 import Tailwind.Utilities as Tw
 import Types exposing (..)
