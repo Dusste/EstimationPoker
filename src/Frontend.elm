@@ -345,7 +345,7 @@ update msg model =
                                             user
                                     )
                     in
-                    ( { model | users = updatedUsers, card = Just cardName }, sendToBackend <| SendCard cardValue (model.roomId |> Maybe.withDefault 1) )
+                    ( { model | users = updatedUsers, card = Just cardName }, sendToBackend <| SendCard cardValue (model.roomId |> Maybe.withDefault 1) justSessionId )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -391,16 +391,16 @@ update msg model =
                             )
 
                     else if String.endsWith "- " str then
-                        Try <| String.dropRight 1 input ++ "-"
+                        InTransition <| String.dropRight 1 input ++ "-"
 
                     else if String.endsWith "--" str then
-                        Try <| String.dropRight 1 input
+                        InTransition <| String.dropRight 1 input
 
                     else if String.endsWith " " str then
-                        Try <| input ++ "-"
+                        InTransition <| input ++ "-"
 
                     else
-                        Try
+                        InTransition
                             (input
                                 |> String.filter (\ch -> Char.isDigit ch || ch == '-')
                             )
@@ -436,7 +436,7 @@ update msg model =
                         ]
                     )
 
-                Try _ ->
+                InTransition _ ->
                     ( model, Cmd.none )
 
                 Reject ->
@@ -473,7 +473,17 @@ update msg model =
             )
 
         CopyRoomUrl ->
-            ( model, Ports.copyUrlToClipboard <| model.url ++ "invite/" ++ (model.roomId |> Maybe.withDefault 1 |> String.fromInt) )
+            let
+                updatedAnnouncement =
+                    List.append model.announcement [ " URL copied !" ]
+            in
+            ( { model | announcement = updatedAnnouncement }
+            , Cmd.batch
+                [ Ports.copyUrlToClipboard <| model.url ++ "invite/" ++ (model.roomId |> Maybe.withDefault 1 |> String.fromInt)
+                , Process.sleep 4000
+                    |> Task.perform (\_ -> HideNotification)
+                ]
+            )
 
         SkipStory ->
             ( { model | shouldStartClock = False, clock = 0, card = Nothing, shouldFlipCards = False, shouldShowCharts = False }, sendToBackend <| SignalSkipStory (model.roomId |> Maybe.withDefault 1) )
@@ -543,7 +553,7 @@ updateFromBackend msg model =
         UpdateRoom { sessionId, name } ->
             let
                 updatedAnnouncement =
-                    model.announcement ++ [ name ++ " has joined !" ]
+                    List.append model.announcement [ name ++ " has joined !" ]
             in
             ( { model | users = { defaultUser | sessionId = sessionId, name = name } :: model.users, announcement = updatedAnnouncement }
             , Process.sleep 4000
@@ -553,7 +563,7 @@ updateFromBackend msg model =
         UpdateRoomName roomName ->
             let
                 updatedAnnouncement =
-                    model.announcement ++ [ roomName ++ " is new name of the room !" ]
+                    List.append model.announcement [ roomName ++ " is new name of the room !" ]
             in
             ( { model | announcement = updatedAnnouncement, roomName = Just roomName }
             , Process.sleep 4000
@@ -566,8 +576,7 @@ updateFromBackend msg model =
         UsersStartTimer ->
             let
                 updatedAnnouncement =
-                    model.announcement
-                        |> (++) [ "Start voting !" ]
+                    List.append model.announcement [ "Start voting !" ]
             in
             ( { model | shouldStartClock = True, announcement = updatedAnnouncement }
             , Process.sleep 4000
@@ -577,8 +586,21 @@ updateFromBackend msg model =
         UsersResetTimer ->
             ( { model | shouldStartClock = False, clock = 0, announcement = [] }, Cmd.none )
 
-        UpdateCards users ->
-            ( { model | users = users, shouldFlipCards = False }, Cmd.none )
+        UpdateCards users userWhoVoted ->
+            let
+                user =
+                    model.users
+                        |> List.filter (\u -> u.sessionId == userWhoVoted)
+                        |> List.head
+                        |> Maybe.withDefault defaultUser
+
+                updatedAnnouncement =
+                    List.append model.announcement [ user.name ++ " has voted !" ]
+            in
+            ( { model | users = users, shouldFlipCards = False, announcement = updatedAnnouncement }
+            , Process.sleep 4000
+                |> Task.perform (\_ -> HideNotification)
+            )
 
         UsersFlipCards users ->
             ( { model | users = users, shouldFlipCards = not <| model.shouldFlipCards }, Cmd.none )
@@ -595,8 +617,7 @@ updateFromBackend msg model =
         UpdateStories updatedStories ->
             let
                 updatedAnnouncement =
-                    model.announcement
-                        |> (++) [ "Story updated !" ]
+                    List.append model.announcement [ "Story updated !" ]
             in
             ( { model | stories = updatedStories, announcement = updatedAnnouncement }
             , Process.sleep 4000
@@ -981,163 +1002,12 @@ view model =
                                           else
                                             text ""
                                         , Html.ul [ Attr.css [ Tw.text_color Tw.white, Tw.list_none, Tw.flex, Tw.flex_wrap, Tw.items_center, Tw.p_0, Tw.mx_auto ] ]
-                                            [ Html.li [ onClick <| SelectSequence Default, Attr.css [ Tw.w_2over4, Tw.border_2, Tw.border_color Tw.white, Tw.border_solid, Tw.border_l_0, Tw.border_t_0 ] ]
-                                                [ Html.div
-                                                    [ Attr.css [ Tw.m_4, Tw.p_2, Tw.bg_color Tw.teal_400, Tw.opacity_70, Tw.cursor_pointer, Tw.transition_all, Bp.md [ Tw.m_5, Tw.p_4 ], Css.hover [ Tw.opacity_100 ] ]
-                                                    , Attr.class
-                                                        (if model.chooseSequence == Default then
-                                                            "selectedSequence"
-
-                                                         else
-                                                            ""
-                                                        )
-                                                    ]
-                                                    [ Html.h3 [ Attr.css [ Tw.my_2, Bp.md [ Tw.my_4 ] ] ] [ text "Default" ]
-                                                    , Html.div [ Attr.css [ Tw.flex, Tw.flex_wrap ] ]
-                                                        (Util.defaultSequenceValues
-                                                            |> String.split ","
-                                                            |> List.map
-                                                                (\intAsStr ->
-                                                                    Html.p
-                                                                        [ Attr.css
-                                                                            [ Tw.flex
-                                                                            , Tw.m_0
-                                                                            , Tw.h_10
-                                                                            , Tw.border_color Tw.white
-                                                                            , Tw.border_solid
-                                                                            , Tw.border_2
-                                                                            , Tw.justify_center
-                                                                            , Tw.w_1over4
-                                                                            , Tw.items_center
-                                                                            , Tw.p_0
-                                                                            , Tw.overflow_hidden
-                                                                            , Tw.relative
-                                                                            , Tw.cursor_pointer
-                                                                            ]
-                                                                        ]
-                                                                        [ text intAsStr ]
-                                                                )
-                                                        )
-                                                    ]
-                                                ]
-                                            , Html.li [ onClick <| SelectSequence Option2, Attr.css [ Tw.w_2over4, Tw.border_2, Tw.border_color Tw.white, Tw.border_solid, Tw.border_r_0, Tw.border_t_0 ] ]
-                                                [ Html.div
-                                                    [ Attr.css [ Tw.m_4, Tw.p_2, Tw.bg_color Tw.teal_400, Tw.opacity_70, Tw.cursor_pointer, Tw.transition_all, Bp.md [ Tw.m_5, Tw.p_4 ], Css.hover [ Tw.opacity_100 ] ]
-                                                    , Attr.class
-                                                        (if model.chooseSequence == Option2 then
-                                                            "selectedSequence"
-
-                                                         else
-                                                            ""
-                                                        )
-                                                    ]
-                                                    [ Html.h3 [ Attr.css [ Tw.my_2, Bp.md [ Tw.my_4 ] ] ] [ text "Option 2" ]
-                                                    , Html.div [ Attr.css [ Tw.flex, Tw.flex_wrap ] ]
-                                                        (Util.option2SequenceValues
-                                                            |> String.split ","
-                                                            |> List.map
-                                                                (\intAsStr ->
-                                                                    Html.p
-                                                                        [ Attr.css
-                                                                            [ Tw.flex
-                                                                            , Tw.m_0
-                                                                            , Tw.h_10
-                                                                            , Tw.border_color Tw.white
-                                                                            , Tw.border_solid
-                                                                            , Tw.border_2
-                                                                            , Tw.justify_center
-                                                                            , Tw.w_1over4
-                                                                            , Tw.items_center
-                                                                            , Tw.p_0
-                                                                            , Tw.overflow_hidden
-                                                                            , Tw.relative
-                                                                            , Tw.cursor_pointer
-                                                                            ]
-                                                                        ]
-                                                                        [ text intAsStr ]
-                                                                )
-                                                        )
-                                                    ]
-                                                ]
-                                            , Html.li [ onClick <| SelectSequence Option3, Attr.css [ Tw.w_2over4, Tw.border_2, Tw.border_color Tw.white, Tw.border_solid, Tw.border_l_0, Tw.border_b_0 ] ]
-                                                [ Html.div
-                                                    [ Attr.css [ Tw.m_4, Tw.p_2, Tw.bg_color Tw.teal_400, Tw.opacity_70, Tw.cursor_pointer, Tw.transition_all, Bp.md [ Tw.m_5, Tw.p_4 ], Css.hover [ Tw.opacity_100 ] ]
-                                                    , Attr.class
-                                                        (if model.chooseSequence == Option3 then
-                                                            "selectedSequence"
-
-                                                         else
-                                                            ""
-                                                        )
-                                                    ]
-                                                    [ Html.h3 [ Attr.css [ Tw.my_2, Bp.md [ Tw.my_4 ] ] ] [ text "Option 3" ]
-                                                    , Html.div [ Attr.css [ Tw.flex, Tw.flex_wrap ] ]
-                                                        (Util.option3SequenceValues
-                                                            |> String.split ","
-                                                            |> List.map
-                                                                (\intAsStr ->
-                                                                    Html.p
-                                                                        [ Attr.css
-                                                                            [ Tw.flex
-                                                                            , Tw.m_0
-                                                                            , Tw.h_10
-                                                                            , Tw.border_color Tw.white
-                                                                            , Tw.border_solid
-                                                                            , Tw.border_2
-                                                                            , Tw.justify_center
-                                                                            , Tw.w_1over4
-                                                                            , Tw.items_center
-                                                                            , Tw.p_0
-                                                                            , Tw.overflow_hidden
-                                                                            , Tw.relative
-                                                                            , Tw.cursor_pointer
-                                                                            ]
-                                                                        ]
-                                                                        [ text intAsStr ]
-                                                                )
-                                                        )
-                                                    ]
-                                                ]
-                                            , Html.li [ onClick <| SelectSequence Option4, Attr.css [ Tw.w_2over4, Tw.border_2, Tw.border_color Tw.white, Tw.border_solid, Tw.border_b_0, Tw.border_r_0 ] ]
-                                                [ Html.div
-                                                    [ Attr.css [ Tw.m_4, Tw.p_2, Tw.bg_color Tw.teal_400, Tw.opacity_70, Tw.cursor_pointer, Tw.transition_all, Bp.md [ Tw.m_5, Tw.p_4 ], Css.hover [ Tw.opacity_100 ] ]
-                                                    , Attr.class
-                                                        (if model.chooseSequence == Option4 then
-                                                            "selectedSequence"
-
-                                                         else
-                                                            ""
-                                                        )
-                                                    ]
-                                                    [ Html.h3 [ Attr.css [ Tw.my_2, Bp.md [ Tw.my_4 ] ] ] [ text "Option 4" ]
-                                                    , Html.div [ Attr.css [ Tw.flex, Tw.flex_wrap ] ]
-                                                        (Util.option4SequenceValues
-                                                            |> String.split ","
-                                                            |> List.map
-                                                                (\intAsStr ->
-                                                                    Html.p
-                                                                        [ Attr.css
-                                                                            [ Tw.flex
-                                                                            , Tw.h_10
-                                                                            , Tw.m_0
-                                                                            , Tw.border_color Tw.white
-                                                                            , Tw.border_solid
-                                                                            , Tw.border_2
-                                                                            , Tw.justify_center
-                                                                            , Tw.w_1over4
-                                                                            , Tw.items_center
-                                                                            , Tw.p_0
-                                                                            , Tw.overflow_hidden
-                                                                            , Tw.relative
-                                                                            , Tw.cursor_pointer
-                                                                            ]
-                                                                        ]
-                                                                        [ text intAsStr ]
-                                                                )
-                                                        )
-                                                    ]
-                                                ]
-                                            ]
+                                            (Util.getCommonSequenceConfig model.chooseSequence
+                                                |> List.map
+                                                    (\config ->
+                                                        viewCommonSequence config
+                                                    )
+                                            )
                                         , Html.div [ Attr.css [ Tw.my_4 ] ]
                                             [ Button.new
                                                 |> Button.withText "Choose"
@@ -1148,161 +1018,7 @@ view model =
                                         ]
                                     , Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ]
                                         [ text "[ or add your own sequence ]", Html.input [ onClick EnableSequenceInput, Attr.type_ "checkbox", Attr.css [ Tw.form_checkbox, Tw.cursor_pointer, Tw.text_color Tw.teal_400, Tw.bg_color Tw.transparent, Tw.p_3, Tw.ml_3, Tw.border, Tw.border_solid, Tw.border_color Tw.teal_400, Css.focus [ Tw.outline_0, Tw.ring_color Tw.transparent, Tw.ring_0, Tw.ring_offset_0 ] ] ] [] ]
-                                    , Html.div
-                                        [ Attr.css [ Tw.relative ] ]
-                                        [ Html.div
-                                            [ Attr.css
-                                                [ Tw.max_w_sm
-                                                , Tw.mx_auto
-                                                , Tw.relative
-                                                ]
-                                            ]
-                                            [ Input.new
-                                                |> Input.withHandleInput
-                                                    StoreSequence
-                                                    (case model.sequence of
-                                                        Accept str ->
-                                                            str
-
-                                                        Try st ->
-                                                            st
-
-                                                        Reject ->
-                                                            ""
-                                                    )
-                                                |> Input.withSendOnEnter SendCustomSequence
-                                                |> Input.withPlaceholder "eg: 23 47 86 21 90"
-                                                |> Input.withPrimaryStyles
-                                                |> Input.withError model.error
-                                                |> Input.toHtml
-                                            , if model.shouldEnableCustomSequence then
-                                                Html.div
-                                                    [ Attr.css
-                                                        [ Tw.flex
-                                                        , Tw.opacity_80
-                                                        , Tw.rounded
-                                                        , Tw.text_xs
-                                                        , Tw.text_color Tw.white
-                                                        , Tw.flex_col
-                                                        , Tw.mt_4
-                                                        , Tw.border
-                                                        , Tw.border_color Tw.white
-                                                        , Tw.border_solid
-                                                        , Tw.p_2
-                                                        , Bp.lg
-                                                            [ Tw.absolute
-                                                            , Tw.neg_right_2over3
-                                                            , Tw.neg_top_2over4
-                                                            , Tw.mt_0
-                                                            ]
-                                                        ]
-                                                    ]
-                                                    [ Html.p [ Attr.css [ Tw.mt_0 ] ] [ text "It comes with couple of constrains:" ]
-                                                    , Html.ul [ Attr.css [ Tw.list_none, Tw.p_0, Tw.m_0, Tw.text_left ] ]
-                                                        [ Html.li [] [ text """- Enter 12 numbers separated by " " (space)""" ]
-                                                        , Html.li [] [ text """- 3 digit max per item """ ]
-                                                        ]
-                                                    , Html.div
-                                                        [ Attr.css
-                                                            [ Tw.w_3
-                                                            , Tw.h_0_dot_5
-                                                            , Tw.hidden
-                                                            , Tw.bg_color Tw.white
-                                                            , Tw.absolute
-                                                            , Tw.top_2over4
-                                                            , Tw.neg_left_3
-                                                            , Bp.lg
-                                                                [ Tw.block
-                                                                ]
-                                                            ]
-                                                        ]
-                                                        []
-                                                    ]
-
-                                              else
-                                                text ""
-                                            ]
-                                        , Html.div
-                                            [ Attr.css
-                                                [ Tw.mt_5
-                                                , Bp.sm
-                                                    [ Tw.mx_auto
-                                                    , Tw.w_full
-                                                    , Tw.max_w_3xl
-                                                    ]
-                                                ]
-                                            ]
-                                            [ case model.sequence of
-                                                Accept input ->
-                                                    Html.div []
-                                                        [ Html.div [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight, Tw.flex, Tw.justify_center ] ]
-                                                            [ Html.div
-                                                                [ Attr.css [ Tw.p_4, Tw.bg_color Tw.teal_400, Tw.text_color Tw.white, Tw.cursor_pointer, Tw.transition_all ]
-                                                                ]
-                                                                [ Html.p [ Attr.css [ Tw.mt_0 ] ] [ text "Your Sequence" ]
-                                                                , Html.div
-                                                                    [ Attr.css [ Tw.flex, Tw.flex_wrap ] ]
-                                                                    (input
-                                                                        |> String.split "-"
-                                                                        |> List.map
-                                                                            (\intAsStr ->
-                                                                                Html.p
-                                                                                    [ Attr.css
-                                                                                        [ Tw.flex
-                                                                                        , Tw.m_0
-                                                                                        , Tw.h_5
-                                                                                        , Tw.border_color Tw.white
-                                                                                        , Tw.border_solid
-                                                                                        , Tw.border_2
-                                                                                        , Tw.justify_center
-                                                                                        , Tw.w_1over4
-                                                                                        , Tw.items_center
-                                                                                        , Tw.p_0
-                                                                                        , Tw.text_sm
-                                                                                        , Tw.overflow_hidden
-                                                                                        , Tw.relative
-                                                                                        , Tw.cursor_pointer
-                                                                                        ]
-                                                                                    ]
-                                                                                    [ text intAsStr ]
-                                                                            )
-                                                                    )
-                                                                ]
-                                                            ]
-                                                        , Button.new
-                                                            |> Button.withText "Create"
-                                                            |> Button.withPrimaryStyle
-                                                            |> Button.withOnClick SendCustomSequence
-                                                            |> Button.toHtml
-                                                        ]
-
-                                                Try str ->
-                                                    let
-                                                        numbersUntilValidSequence =
-                                                            str |> String.split "-" |> List.filterMap String.toInt |> List.length |> (-) 12
-                                                    in
-                                                    Html.p [ Attr.css [ Tw.text_color Tw.orange_400 ] ] [ text <| String.fromInt numbersUntilValidSequence ++ " " ++ Util.pluralize (toFloat numbersUntilValidSequence) "number" ++ " to go" ]
-
-                                                Reject ->
-                                                    text ""
-                                            ]
-                                        , if not <| model.shouldEnableCustomSequence then
-                                            -- Overlay el
-                                            Html.div
-                                                [ Attr.css
-                                                    [ Tw.absolute
-                                                    , Tw.w_full
-                                                    , Tw.h_full
-                                                    , Tw.top_0
-                                                    , Tw.opacity_80
-                                                    , Tw.bg_color Tw.black
-                                                    ]
-                                                ]
-                                                []
-
-                                          else
-                                            text ""
-                                        ]
+                                    , viewCustomSequence { sequence = model.sequence, error = model.error, shouldEnableCustomSequence = model.shouldEnableCustomSequence }
                                     ]
                                 ]
 
@@ -1451,86 +1167,7 @@ view model =
                                                 viewCards model
                                             ]
                                         ]
-                                    , Html.div [ Attr.css [ Tw.mt_10 ] ]
-                                        [ case model.credentials of
-                                            Admin ->
-                                                Html.div
-                                                    [ Attr.css
-                                                        [ Tw.flex
-                                                        , Tw.gap_4
-                                                        , Tw.flex_wrap
-                                                        , Tw.justify_center
-                                                        , Bp.lg [ Tw.justify_start ]
-                                                        ]
-                                                    ]
-                                                    [ if not <| model.shouldShowCharts && List.length model.stories > 0 then
-                                                        if model.shouldStartClock then
-                                                            Html.div
-                                                                [ Attr.css
-                                                                    [ Tw.flex
-                                                                    , Tw.gap_4
-                                                                    , Tw.flex_wrap
-                                                                    , Tw.justify_center
-                                                                    , Bp.lg [ Tw.justify_start ]
-                                                                    ]
-                                                                ]
-                                                                [ Button.new
-                                                                    |> Button.withText "Reset timer"
-                                                                    |> Button.withPrimaryStyle
-                                                                    |> Button.withOnClick ResetTime
-                                                                    |> Button.toHtml
-                                                                , if model.users |> List.any (\user -> user.voteState /= NotVoted) then
-                                                                    if model.shouldFlipCards then
-                                                                        Button.new
-                                                                            |> Button.withText "Hide Votes "
-                                                                            |> Button.withPrimaryStyle
-                                                                            |> Button.withOnClick HideCards
-                                                                            |> Button.toHtml
-
-                                                                    else
-                                                                        Button.new
-                                                                            |> Button.withText "Show votes"
-                                                                            |> Button.withPrimaryStyle
-                                                                            |> Button.withOnClick ShowCards
-                                                                            |> Button.toHtml
-
-                                                                  else
-                                                                    text ""
-                                                                , Button.new
-                                                                    |> Button.withText "Clear votes"
-                                                                    |> Button.withPrimaryStyle
-                                                                    |> Button.withOnClick ClearVotes
-                                                                    |> Button.toHtml
-                                                                , Button.new
-                                                                    |> Button.withText "Skip story"
-                                                                    |> Button.withPrimaryStyle
-                                                                    |> Button.withOnClick SkipStory
-                                                                    |> Button.toHtml
-                                                                , if model.users |> List.all (\user -> not <| user.voteState == NotVoted) then
-                                                                    Button.new
-                                                                        |> Button.withText "Finish Voting"
-                                                                        |> Button.withPrimaryStyle
-                                                                        |> Button.withOnClick FinishVoting
-                                                                        |> Button.toHtml
-
-                                                                  else
-                                                                    text ""
-                                                                ]
-
-                                                        else
-                                                            Button.new
-                                                                |> Button.withText "Start timer"
-                                                                |> Button.withPrimaryStyle
-                                                                |> Button.withOnClick StartTime
-                                                                |> Button.toHtml
-
-                                                      else
-                                                        text ""
-                                                    ]
-
-                                            Employee ->
-                                                text ""
-                                        ]
+                                    , viewButtonCommandLine model
                                     , Html.div [ Attr.css [ Tw.mt_10, Tw.flex, Tw.gap_4, Tw.items_start ] ]
                                         [ Html.h4 [ Attr.css [ Tw.text_3xl, Tw.m_0, Tw.mb_4 ] ] [ text "Stories:" ]
                                         , case model.credentials of
@@ -1544,145 +1181,9 @@ view model =
                                             Employee ->
                                                 text ""
                                         ]
-                                    , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.flex_col, Tw.text_2xl, Tw.gap_2 ] ]
-                                        (model.stories
-                                            |> List.map
-                                                (\story ->
-                                                    case story of
-                                                        Story storyId storyName ->
-                                                            case model.credentials of
-                                                                Admin ->
-                                                                    Html.li
-                                                                        [ Attr.css
-                                                                            [ Tw.flex
-                                                                            , Tw.items_center
-                                                                            , Tw.self_start
-                                                                            , if model.editedStory == Story storyId storyName then
-                                                                                Tw.w_full
-
-                                                                              else
-                                                                                Tw.w_auto
-                                                                            ]
-                                                                        ]
-                                                                        [ if model.editedStory == Story storyId storyName then
-                                                                            Html.div [ Attr.css [ Tw.flex, Tw.items_center, Tw.self_start, Tw.w_full ] ]
-                                                                                [ Input.new
-                                                                                    |> Input.withHandleInput
-                                                                                        StoreStory
-                                                                                        (case model.story of
-                                                                                            Story _ sn ->
-                                                                                                sn
-
-                                                                                            NoStory _ ->
-                                                                                                ""
-                                                                                        )
-                                                                                    |> Input.withSendOnEnter (SendEditedStory storyId)
-                                                                                    |> Input.withEditStyle
-                                                                                    |> Input.withError model.error
-                                                                                    |> Input.toHtml
-                                                                                , Button.new
-                                                                                    |> Button.withText "Save"
-                                                                                    |> Button.withEditStyle
-                                                                                    |> Button.withOnClick (SendEditedStory storyId)
-                                                                                    |> Button.toHtml
-                                                                                ]
-
-                                                                          else
-                                                                            Html.div [ Attr.class "edit", Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.cursor_pointer, Tw.self_start, Tw.pl_2, Tw.w_full, Tw.h_full ], onClick <| EditStory storyId storyName ]
-                                                                                [ text storyName
-                                                                                , Html.span [ Attr.css [ Tw.flex, Tw.self_stretch, Tw.ml_2, Tw.items_center, Tw.py_1 ] ] [ Svgs.withOverrideStyle |> Svgs.iconPencil ]
-                                                                                ]
-                                                                        ]
-
-                                                                Employee ->
-                                                                    Html.li [ Attr.css [ Tw.break_all, Tw.py_2 ] ] [ text storyName ]
-
-                                                        NoStory _ ->
-                                                            text ""
-                                                )
-                                        )
+                                    , viewEditStoriesSection model
                                     ]
-                                , Html.div
-                                    [ Attr.css
-                                        [ Tw.flex
-                                        , Tw.items_center
-                                        , Tw.py_6
-                                        , Bp.lg
-                                            [ Tw.pl_10
-                                            , Tw.text_right
-                                            , Tw.border_l
-                                            , Tw.border_color Tw.gray_600
-                                            , Tw.border_solid
-                                            , Tw.border_r_0
-                                            , Tw.border_b_0
-                                            , Tw.border_t_0
-                                            ]
-                                        ]
-                                    ]
-                                    [ Html.div [ Attr.css [ Tw.flex, Tw.flex_col ] ]
-                                        [ Html.div [ Attr.css [ Tw.text_5xl ] ] [ text <| Util.fromIntToCounter model.clock ]
-                                        , Html.p [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400, Tw.font_extralight ] ] [ text "[ Copy link and send to collegues ]" ]
-                                        , Html.div []
-                                            [ Html.input
-                                                [ Attr.readonly True
-                                                , Attr.css
-                                                    [ Tw.block
-                                                    , Tw.w_full
-                                                    , Tw.form_input
-                                                    , Tw.rounded_md
-                                                    , Tw.rounded_b_none
-                                                    , Tw.border_0
-                                                    , Tw.py_2
-                                                    , Tw.pl_3
-                                                    , Tw.pr_3
-                                                    , Tw.shadow_sm
-                                                    , Tw.ring_1
-                                                    , Tw.ring_inset
-                                                    , Tw.ring_color Tw.gray_300
-                                                    , Tw.bg_color Tw.slate_900
-                                                    , Tw.font_mono
-                                                    , Tw.text_color Tw.teal_400
-                                                    , Css.focus
-                                                        [ Tw.outline_0
-                                                        , Tw.ring_color Tw.slate_900
-                                                        ]
-                                                    , Bp.sm
-                                                        [ Tw.text_lg
-                                                        , Tw.leading_6
-                                                        ]
-                                                    , Bp.lg [ Tw.text_right ]
-                                                    ]
-                                                , Attr.value <| model.url ++ "invite/" ++ (model.roomId |> Maybe.withDefault 1 |> String.fromInt)
-                                                ]
-                                                []
-                                            ]
-                                        , Button.new
-                                            |> Button.withText "Copy URL"
-                                            |> Button.withReadOnlyInputStyle
-                                            |> Button.withOnClick CopyRoomUrl
-                                            |> Button.toHtml
-                                        , Html.div [ Attr.css [ Tw.mt_6 ] ]
-                                            [ Html.h4 [ Attr.css [ Tw.text_3xl, Tw.m_0, Tw.mb_4 ] ] [ text "Team:" ]
-                                            , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.flex_col, Tw.text_2xl, Tw.gap_4 ] ]
-                                                (model.users
-                                                    |> List.map
-                                                        (\{ isAdmin, name, card, voteState } ->
-                                                            if isAdmin then
-                                                                Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.text_color Tw.blue_400, Tw.break_all ] ]
-                                                                    (viewNameCardGroup
-                                                                        { voteState = voteState, card = card, name = name }
-                                                                    )
-
-                                                            else
-                                                                Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.break_all ] ]
-                                                                    (viewNameCardGroup
-                                                                        { voteState = voteState, card = card, name = name }
-                                                                    )
-                                                        )
-                                                )
-                                            ]
-                                        ]
-                                    ]
+                                , viewSidebar model
                                 ]
 
                         Step404 ->
@@ -1716,6 +1217,353 @@ view model =
                 ]
         ]
     }
+
+
+viewCommonSequence : SequenceConfig -> Html FrontendMsg
+viewCommonSequence { msg, choosenSequence, sequenceValue, msgAttribute, borderSetup, textValue } =
+    Html.li [ onClick <| msg msgAttribute, Attr.css <| [ Tw.w_2over4, Tw.border_2, Tw.border_color Tw.white, Tw.border_solid ] ++ borderSetup ]
+        [ Html.div
+            [ Attr.css [ Tw.m_4, Tw.p_2, Tw.bg_color Tw.teal_400, Tw.opacity_70, Tw.cursor_pointer, Tw.transition_all, Bp.md [ Tw.m_5, Tw.p_4 ], Css.hover [ Tw.opacity_100 ] ]
+            , Attr.class
+                (if choosenSequence == msgAttribute then
+                    "selectedSequence"
+
+                 else
+                    ""
+                )
+            ]
+            [ Html.h3 [ Attr.css [ Tw.my_2, Bp.md [ Tw.my_4 ] ] ] [ text textValue ]
+            , Html.div [ Attr.css [ Tw.flex, Tw.flex_wrap ] ]
+                (sequenceValue
+                    |> String.split ","
+                    |> List.map
+                        (\intAsStr ->
+                            Html.p
+                                [ Attr.css
+                                    [ Tw.flex
+                                    , Tw.m_0
+                                    , Tw.h_10
+                                    , Tw.border_color Tw.white
+                                    , Tw.border_solid
+                                    , Tw.border_2
+                                    , Tw.justify_center
+                                    , Tw.w_1over4
+                                    , Tw.items_center
+                                    , Tw.p_0
+                                    , Tw.overflow_hidden
+                                    , Tw.relative
+                                    , Tw.cursor_pointer
+                                    ]
+                                ]
+                                [ text intAsStr ]
+                        )
+                )
+            ]
+        ]
+
+
+viewCustomSequence : { sequence : Sequence, error : InvalidTextFiled, shouldEnableCustomSequence : Bool } -> Html FrontendMsg
+viewCustomSequence { sequence, error, shouldEnableCustomSequence } =
+    Html.div
+        [ Attr.css [ Tw.relative ] ]
+        [ Html.div
+            [ Attr.css
+                [ Tw.max_w_sm
+                , Tw.mx_auto
+                , Tw.relative
+                ]
+            ]
+            [ Input.new
+                |> Input.withHandleInput
+                    StoreSequence
+                    (case sequence of
+                        Accept str ->
+                            str
+
+                        InTransition st ->
+                            st
+
+                        Reject ->
+                            ""
+                    )
+                |> Input.withSendOnEnter SendCustomSequence
+                |> Input.withPlaceholder "eg: 23 47 86 21 90"
+                |> Input.withPrimaryStyles
+                |> Input.withError error
+                |> Input.toHtml
+            , if shouldEnableCustomSequence then
+                Html.div
+                    [ Attr.css
+                        [ Tw.flex
+                        , Tw.opacity_80
+                        , Tw.rounded
+                        , Tw.text_xs
+                        , Tw.text_color Tw.white
+                        , Tw.flex_col
+                        , Tw.mt_4
+                        , Tw.border
+                        , Tw.border_color Tw.white
+                        , Tw.border_solid
+                        , Tw.p_2
+                        , Bp.lg
+                            [ Tw.absolute
+                            , Tw.neg_right_2over3
+                            , Tw.neg_top_2over4
+                            , Tw.mt_0
+                            ]
+                        ]
+                    ]
+                    [ Html.p [ Attr.css [ Tw.mt_0 ] ] [ text "It comes with couple of constrains:" ]
+                    , Html.ul [ Attr.css [ Tw.list_none, Tw.p_0, Tw.m_0, Tw.text_left ] ]
+                        [ Html.li [] [ text """- Enter 12 numbers separated by " " (space)""" ]
+                        , Html.li [] [ text """- 3 digit max per item """ ]
+                        ]
+                    , Html.div
+                        [ Attr.css
+                            [ Tw.w_3
+                            , Tw.h_0_dot_5
+                            , Tw.hidden
+                            , Tw.bg_color Tw.white
+                            , Tw.absolute
+                            , Tw.top_2over4
+                            , Tw.neg_left_3
+                            , Bp.lg
+                                [ Tw.block
+                                ]
+                            ]
+                        ]
+                        []
+                    ]
+
+              else
+                text ""
+            ]
+        , Html.div
+            [ Attr.css
+                [ Tw.mt_5
+                , Bp.sm
+                    [ Tw.mx_auto
+                    , Tw.w_full
+                    , Tw.max_w_3xl
+                    ]
+                ]
+            ]
+            [ case sequence of
+                Accept input ->
+                    Html.div []
+                        [ Html.div [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight, Tw.flex, Tw.justify_center ] ]
+                            [ Html.div
+                                [ Attr.css [ Tw.p_4, Tw.bg_color Tw.teal_400, Tw.text_color Tw.white, Tw.cursor_pointer, Tw.transition_all ]
+                                ]
+                                [ Html.p [ Attr.css [ Tw.mt_0 ] ] [ text "Your Sequence" ]
+                                , Html.div
+                                    [ Attr.css [ Tw.flex, Tw.flex_wrap ] ]
+                                    (input
+                                        |> String.split "-"
+                                        |> List.map
+                                            (\intAsStr ->
+                                                Html.p
+                                                    [ Attr.css
+                                                        [ Tw.flex
+                                                        , Tw.m_0
+                                                        , Tw.h_5
+                                                        , Tw.border_color Tw.white
+                                                        , Tw.border_solid
+                                                        , Tw.border_2
+                                                        , Tw.justify_center
+                                                        , Tw.w_1over4
+                                                        , Tw.items_center
+                                                        , Tw.p_0
+                                                        , Tw.text_sm
+                                                        , Tw.overflow_hidden
+                                                        , Tw.relative
+                                                        , Tw.cursor_pointer
+                                                        ]
+                                                    ]
+                                                    [ text intAsStr ]
+                                            )
+                                    )
+                                ]
+                            ]
+                        , Button.new
+                            |> Button.withText "Create"
+                            |> Button.withPrimaryStyle
+                            |> Button.withOnClick SendCustomSequence
+                            |> Button.toHtml
+                        ]
+
+                InTransition str ->
+                    let
+                        numbersUntilValidSequence =
+                            str |> String.split "-" |> List.filterMap String.toInt |> List.length |> (-) 12
+                    in
+                    Html.p [ Attr.css [ Tw.text_color Tw.orange_400 ] ] [ text <| String.fromInt numbersUntilValidSequence ++ " " ++ Util.pluralize (toFloat numbersUntilValidSequence) "number" ++ " to go" ]
+
+                Reject ->
+                    text ""
+            ]
+        , if not <| shouldEnableCustomSequence then
+            -- Overlay el
+            Html.div
+                [ Attr.css
+                    [ Tw.absolute
+                    , Tw.w_full
+                    , Tw.h_full
+                    , Tw.top_0
+                    , Tw.opacity_80
+                    , Tw.bg_color Tw.black
+                    ]
+                ]
+                []
+
+          else
+            text ""
+        ]
+
+
+viewEditStoriesSection : FrontendModel -> Html FrontendMsg
+viewEditStoriesSection { credentials, stories, editedStory, story, error } =
+    Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.flex_col, Tw.text_2xl, Tw.gap_2 ] ]
+        (stories
+            |> List.map
+                (\str ->
+                    case str of
+                        Story storyId storyName ->
+                            case credentials of
+                                Admin ->
+                                    Html.li
+                                        [ Attr.css
+                                            [ Tw.flex
+                                            , Tw.items_center
+                                            , Tw.self_start
+                                            , if editedStory == Story storyId storyName then
+                                                Tw.w_full
+
+                                              else
+                                                Tw.w_auto
+                                            ]
+                                        ]
+                                        [ if editedStory == Story storyId storyName then
+                                            Html.div [ Attr.css [ Tw.flex, Tw.items_center, Tw.self_start, Tw.w_full ] ]
+                                                [ Input.new
+                                                    |> Input.withHandleInput
+                                                        StoreStory
+                                                        (case story of
+                                                            Story _ sn ->
+                                                                sn
+
+                                                            NoStory _ ->
+                                                                ""
+                                                        )
+                                                    |> Input.withSendOnEnter (SendEditedStory storyId)
+                                                    |> Input.withEditStyle
+                                                    |> Input.withError error
+                                                    |> Input.toHtml
+                                                , Button.new
+                                                    |> Button.withText "Save"
+                                                    |> Button.withEditStyle
+                                                    |> Button.withOnClick (SendEditedStory storyId)
+                                                    |> Button.toHtml
+                                                ]
+
+                                          else
+                                            Html.div [ Attr.class "edit", Attr.css [ Tw.break_all, Tw.flex, Tw.items_center, Tw.cursor_pointer, Tw.self_start, Tw.pl_2, Tw.w_full, Tw.h_full ], onClick <| EditStory storyId storyName ]
+                                                [ text storyName
+                                                , Html.span [ Attr.css [ Tw.flex, Tw.self_stretch, Tw.ml_2, Tw.items_center, Tw.py_1 ] ] [ Svgs.withOverrideStyle |> Svgs.iconPencil ]
+                                                ]
+                                        ]
+
+                                Employee ->
+                                    Html.li [ Attr.css [ Tw.break_all, Tw.py_2 ] ] [ text storyName ]
+
+                        NoStory _ ->
+                            text ""
+                )
+        )
+
+
+viewButtonCommandLine : FrontendModel -> Html FrontendMsg
+viewButtonCommandLine { credentials, shouldShowCharts, stories, shouldStartClock, users, shouldFlipCards } =
+    Html.div [ Attr.css [ Tw.mt_10 ] ]
+        [ case credentials of
+            Admin ->
+                Html.div
+                    [ Attr.css
+                        [ Tw.flex
+                        , Tw.gap_4
+                        , Tw.flex_wrap
+                        , Tw.justify_center
+                        , Bp.lg [ Tw.justify_start ]
+                        ]
+                    ]
+                    [ if not <| shouldShowCharts && List.length stories > 0 then
+                        if shouldStartClock then
+                            Html.div
+                                [ Attr.css
+                                    [ Tw.flex
+                                    , Tw.gap_4
+                                    , Tw.flex_wrap
+                                    , Tw.justify_center
+                                    , Bp.lg [ Tw.justify_start ]
+                                    ]
+                                ]
+                                [ Button.new
+                                    |> Button.withText "Reset timer"
+                                    |> Button.withPrimaryStyle
+                                    |> Button.withOnClick ResetTime
+                                    |> Button.toHtml
+                                , if users |> List.any (\user -> user.voteState /= NotVoted) then
+                                    if shouldFlipCards then
+                                        Button.new
+                                            |> Button.withText "Hide Votes "
+                                            |> Button.withPrimaryStyle
+                                            |> Button.withOnClick HideCards
+                                            |> Button.toHtml
+
+                                    else
+                                        Button.new
+                                            |> Button.withText "Show votes"
+                                            |> Button.withPrimaryStyle
+                                            |> Button.withOnClick ShowCards
+                                            |> Button.toHtml
+
+                                  else
+                                    text ""
+                                , Button.new
+                                    |> Button.withText "Clear votes"
+                                    |> Button.withPrimaryStyle
+                                    |> Button.withOnClick ClearVotes
+                                    |> Button.toHtml
+                                , Button.new
+                                    |> Button.withText "Skip story"
+                                    |> Button.withPrimaryStyle
+                                    |> Button.withOnClick SkipStory
+                                    |> Button.toHtml
+                                , if users |> List.all (\user -> not <| user.voteState == NotVoted) then
+                                    Button.new
+                                        |> Button.withText "Finish Voting"
+                                        |> Button.withPrimaryStyle
+                                        |> Button.withOnClick FinishVoting
+                                        |> Button.toHtml
+
+                                  else
+                                    text ""
+                                ]
+
+                        else
+                            Button.new
+                                |> Button.withText "Start timer"
+                                |> Button.withPrimaryStyle
+                                |> Button.withOnClick StartTime
+                                |> Button.toHtml
+
+                      else
+                        text ""
+                    ]
+
+            Employee ->
+                text ""
+        ]
 
 
 viewNameCardGroup : { voteState : VoteState, card : Maybe Float, name : ValidTextField } -> List (Html FrontendMsg)
@@ -1859,6 +1707,91 @@ viewCards model =
         ]
 
 
+viewSidebar : FrontendModel -> Html FrontendMsg
+viewSidebar { clock, url, roomId, users } =
+    Html.div
+        [ Attr.css
+            [ Tw.flex
+            , Tw.items_center
+            , Tw.py_6
+            , Bp.lg
+                [ Tw.pl_10
+                , Tw.text_right
+                , Tw.border_l
+                , Tw.border_color Tw.gray_600
+                , Tw.border_solid
+                , Tw.border_r_0
+                , Tw.border_b_0
+                , Tw.border_t_0
+                ]
+            ]
+        ]
+        [ Html.div [ Attr.css [ Tw.flex, Tw.flex_col ] ]
+            [ Html.div [ Attr.css [ Tw.text_5xl ] ] [ text <| Util.fromIntToCounter clock ]
+            , Html.p [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400, Tw.font_extralight ] ] [ text "[ Copy link and send to collegues ]" ]
+            , Html.div []
+                [ Html.input
+                    [ Attr.readonly True
+                    , Attr.css
+                        [ Tw.block
+                        , Tw.w_full
+                        , Tw.form_input
+                        , Tw.rounded_md
+                        , Tw.rounded_b_none
+                        , Tw.border_0
+                        , Tw.py_2
+                        , Tw.pl_3
+                        , Tw.pr_3
+                        , Tw.shadow_sm
+                        , Tw.ring_1
+                        , Tw.ring_inset
+                        , Tw.ring_color Tw.gray_300
+                        , Tw.bg_color Tw.slate_900
+                        , Tw.font_mono
+                        , Tw.text_color Tw.teal_400
+                        , Css.focus
+                            [ Tw.outline_0
+                            , Tw.ring_color Tw.slate_900
+                            ]
+                        , Bp.sm
+                            [ Tw.text_lg
+                            , Tw.leading_6
+                            ]
+                        , Bp.lg [ Tw.text_right ]
+                        ]
+                    , Attr.value <| url ++ "invite/" ++ (roomId |> Maybe.withDefault 1 |> String.fromInt)
+                    ]
+                    []
+                ]
+            , Button.new
+                |> Button.withText "Copy URL"
+                |> Button.withReadOnlyInputStyle
+                |> Button.withOnClick CopyRoomUrl
+                |> Button.toHtml
+            , Html.div [ Attr.css [ Tw.mt_6 ] ]
+                [ Html.h4 [ Attr.css [ Tw.text_3xl, Tw.m_0, Tw.mb_4 ] ] [ text "Team:" ]
+                , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.flex_col, Tw.text_2xl, Tw.gap_4 ] ]
+                    (users
+                        |> List.map
+                            (\{ isAdmin, name, card, voteState } ->
+                                if isAdmin then
+                                    Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.text_color Tw.blue_400, Tw.break_all ] ]
+                                        (viewNameCardGroup
+                                            { voteState = voteState, card = card, name = name }
+                                        )
+
+                                else
+                                    Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.break_all ] ]
+                                        (viewNameCardGroup
+                                            { voteState = voteState, card = card, name = name }
+                                        )
+                            )
+                    )
+                ]
+            ]
+        ]
+
+
 viewCharts : FrontendModel -> Html FrontendMsg
 viewCharts model =
     let
@@ -1963,7 +1896,7 @@ viewCharts model =
                 |> Button.toHtml
 
           else if model.shouldShowCharts && List.length model.stories == 1 && model.credentials == Admin then
-            text """[ Seems you are on the last story, add more on "+1" ]"""
+            Html.div [ Attr.css [ Tw.bg_color Tw.orange_400, Tw.p_2, Tw.rounded, Tw.flex, Tw.gap_3 ] ] [ Html.span [ Attr.css [ Tw.border_solid, Tw.text_center, Tw.w_5, Tw.h_5, Tw.border, Tw.border_color Tw.white, Tw.rounded_full ] ] [ text "!" ], text """ [ Seems you are on the last story, add more on "+1" ]""" ]
 
           else
             text ""

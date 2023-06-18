@@ -6,6 +6,7 @@ import Html.Styled as Html exposing (Attribute)
 import Html.Styled.Events exposing (keyCode, on)
 import Json.Decode as Json
 import Tailwind.Theme as Tw
+import Tailwind.Utilities as Tw
 import Types exposing (..)
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>), Parser)
@@ -258,6 +259,15 @@ colorConfig =
 
         -- It's highly unlikely to get more then 31 participants
         ]
+
+
+getCommonSequenceConfig : CommonSequence -> List SequenceConfig
+getCommonSequenceConfig chooseSequence =
+    [ { msg = SelectSequence, choosenSequence = chooseSequence, sequenceValue = defaultSequenceValues, msgAttribute = Default, borderSetup = [ Tw.border_l_0, Tw.border_t_0 ], textValue = "Default" }
+    , { msg = SelectSequence, choosenSequence = chooseSequence, sequenceValue = option2SequenceValues, msgAttribute = Option2, borderSetup = [ Tw.border_r_0, Tw.border_t_0 ], textValue = "Option 2" }
+    , { msg = SelectSequence, choosenSequence = chooseSequence, sequenceValue = option3SequenceValues, msgAttribute = Option3, borderSetup = [ Tw.border_b_0, Tw.border_l_0 ], textValue = "Option 3" }
+    , { msg = SelectSequence, choosenSequence = chooseSequence, sequenceValue = option4SequenceValues, msgAttribute = Option4, borderSetup = [ Tw.border_b_0, Tw.border_r_0 ], textValue = "Option 4" }
+    ]
 
 
 defaultCards : List { name : String, value : Float }

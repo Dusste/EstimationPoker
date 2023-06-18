@@ -2,6 +2,7 @@ module Types exposing (..)
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
+import Css exposing (Style)
 import Dict exposing (Dict)
 import Lamdera exposing (ClientId, SessionId)
 import Time
@@ -84,8 +85,18 @@ type CommonSequence
 
 type Sequence
     = Accept SequenceString
-    | Try String
+    | InTransition String
     | Reject
+
+
+type alias SequenceConfig =
+    { msg : CommonSequence -> FrontendMsg
+    , choosenSequence : CommonSequence
+    , sequenceValue : SequenceString
+    , msgAttribute : CommonSequence
+    , borderSetup : List Style
+    , textValue : String
+    }
 
 
 type Route
@@ -212,7 +223,7 @@ type ToBackend
     | SendAdminNameToBE ValidTextField
     | SendUserNameToBE ValidTextField RoomParam
     | ReqRoomRoute RoomParam Credentials
-    | SendCard Float RoomParam
+    | SendCard Float RoomParam SessionId
     | StartTimerAndVote RoomParam
     | ResetTimerAndVote RoomParam
     | InitiateShowCards RoomParam
@@ -239,7 +250,7 @@ type ToFrontend
     | SupplyBEData { users : List User, stories : List Story }
     | UsersStartTimer
     | UsersResetTimer
-    | UpdateCards (List User)
+    | UpdateCards (List User) SessionId
     | UsersFlipCards (List User)
     | UsersCardReset (List User)
     | SkipStoryAndExposeCharts (List User)

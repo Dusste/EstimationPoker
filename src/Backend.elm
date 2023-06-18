@@ -150,7 +150,7 @@ updateFromFrontend sessionId clientId msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
-        SendCard cardValue roomId ->
+        SendCard cardValue roomId userWhoVoted ->
             let
                 updateUser usrs =
                     usrs
@@ -174,14 +174,14 @@ updateFromFrontend sessionId clientId msg model =
                         |> Dict.get roomId
                         |> Maybe.withDefault defaultRoom
 
-                notifyCertainUsersAboutSomething : List User -> (List User -> toFrontend) -> (SessionId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
+                notifyCertainUsersAboutSomething : List User -> (List User -> SessionId -> toFrontend) -> (SessionId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
                 notifyCertainUsersAboutSomething usrs msgToFe f =
                     case usrs of
                         [] ->
                             []
 
                         x :: xs ->
-                            (f x.sessionId <| msgToFe users) :: notifyCertainUsersAboutSomething xs msgToFe f
+                            (f x.sessionId <| msgToFe users userWhoVoted) :: notifyCertainUsersAboutSomething xs msgToFe f
             in
             ( { model | rooms = updateRooms }, notifyCertainUsersAboutSomething users UpdateCards sendToFrontend |> Cmd.batch )
 
