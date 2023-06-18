@@ -64,6 +64,11 @@ withPrimaryStyle (Button constraints) =
     Button { constraints | styles = buttonStyle }
 
 
+withJumboStyle : Button { constraints | hasTextOrIcon : () } -> Button { constraints | hasStyles : (), hasTextOrIcon : () }
+withJumboStyle (Button constraints) =
+    Button { constraints | styles = buttonStyle ++ [ Tw.px_10, Tw.py_7 ] }
+
+
 withEditStyle : Button { constraints | hasTextOrIcon : () } -> Button { constraints | hasStyles : (), hasTextOrIcon : () }
 withEditStyle (Button constraints) =
     Button { constraints | styles = buttonEditStyle }

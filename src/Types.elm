@@ -119,7 +119,8 @@ type alias ValidTextField =
 
 
 type Status
-    = EnterNameStep
+    = Intro
+    | EnterNameStep
     | EnterAdminNameStep
     | CreateRoomStep
     | CreateStoryStep
@@ -176,6 +177,7 @@ type alias SequenceString =
 type FrontendMsg
     = UrlClicked UrlRequest
     | UrlChanged Url
+    | StartAsAdmin
     | StoreName String
     | StoreRoom String
     | StoreStory String

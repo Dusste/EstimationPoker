@@ -50,7 +50,7 @@ initialModel : Url -> Nav.Key -> Model
 initialModel url key =
     { key = key
     , url = Util.getBaseUrl url
-    , status = EnterAdminNameStep
+    , status = Intro
     , name = Nothing
     , roomName = Nothing
     , editRoomName = Nothing
@@ -137,6 +137,9 @@ update msg model =
 
                 NotFound ->
                     ( model, Cmd.none )
+
+        StartAsAdmin ->
+            ( { model | status = EnterAdminNameStep }, Cmd.none )
 
         SendName cred ->
             case Util.validateInput model.name of
@@ -643,6 +646,42 @@ view model =
                 [ Html.div [ Attr.css [ Tw.h_full, Tw.w_full, Tw.flex, Tw.flex_col ] ]
                     [ viewNotifications model
                     , case model.status of
+                        Intro ->
+                            Html.div
+                                [ Attr.css
+                                    [ Tw.flex
+                                    , Tw.min_h_full
+                                    , Tw.flex_col
+                                    , Tw.justify_center
+                                    , Tw.px_6
+                                    , Tw.text_center
+                                    , Bp.lg
+                                        [ Tw.px_8
+                                        ]
+                                    ]
+                                ]
+                                [ Html.div
+                                    [ Attr.css
+                                        [ Tw.text_color Tw.white
+                                        , Tw.text_2xl
+                                        , Bp.sm
+                                            [ Tw.mx_auto
+                                            , Tw.w_full
+                                            , Tw.max_w_2xl
+                                            ]
+                                        ]
+                                    ]
+                                    [ Html.h1 [ Attr.css [ Tw.mb_20 ] ] [ text "Hi ! Welcome to EST Poker !" ]
+                                    , Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_2xl, Tw.italic, Tw.mb_10, Tw.mt_0, Tw.font_extralight ] ] [ text "[ Simple web app for estimation story points within team ]" ]
+                                    , Html.p [ Attr.css [ Tw.rounded, Tw.border_color Tw.teal_400, Tw.border_2, Tw.border_solid, Tw.p_5, Tw.mb_10 ] ] [ text "Precise Planning, Efficient Execution, Blazing Fast !" ]
+                                    , Button.new
+                                        |> Button.withText "Get Started →"
+                                        |> Button.withJumboStyle
+                                        |> Button.withOnClick StartAsAdmin
+                                        |> Button.toHtml
+                                    ]
+                                ]
+
                         EnterAdminNameStep ->
                             Html.div
                                 [ Attr.css
