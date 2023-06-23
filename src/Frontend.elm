@@ -925,7 +925,7 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ Html.h2 [ Attr.css [ Tw.mt_0, Tw.mb_4 ] ] [ text "Create new story" ] ]
+                                    [ Html.h2 [ Attr.css [ Tw.mt_0, Tw.mb_4 ], Attr.attribute "data-testid" "create-story-text" ] [ text "Create new story" ] ]
                                 , Html.div
                                     [ Attr.css
                                         [ Bp.sm
@@ -935,7 +935,7 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ Add multiple or one story ]" ]
+                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ], Attr.attribute "data-testid" "create-story-info-text" ] [ text "[ Add multiple or one story ]" ]
                                     , Input.new
                                         |> Input.withHandleInput
                                             StoreStory
@@ -949,6 +949,7 @@ view model =
                                         |> Input.withPlaceholder "eq: Task 123 ?"
                                         |> Input.withPrimaryStyles
                                         |> Input.withError model.error
+                                        |> Input.withTestId "create-story-input"
                                         |> Input.toHtml
                                     ]
                                 , Html.div
@@ -966,11 +967,13 @@ view model =
                                         |> Button.withText "Add New"
                                         |> Button.withPrimaryStyle
                                         |> Button.withOnClick SendStory
+                                        |> Button.withTestId "create-story-add"
                                         |> Button.toHtml
                                     , Button.new
                                         |> Button.withText "Save"
                                         |> Button.withPrimaryStyle
                                         |> Button.withOnClick SaveStory
+                                        |> Button.withTestId "create-story-submit"
                                         |> Button.toHtml
                                     ]
                                 ]

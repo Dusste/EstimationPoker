@@ -69,18 +69,61 @@ describe("Regular Admin journey", () => {
       "rgb(239, 68, 68)"
     );
   });
-  // it("should pass room step", () => {
-  //   cy.visit("https://example.cypress.io");
-  // });
-  // it("should get error on story step", () => {
-  //   cy.visit("https://example.cypress.io");
-  // });
-  // it("should be able to add multiple stories and stay on same step", () => {
-  //   cy.visit("https://example.cypress.io");
-  // });
-  // it("should be able to save stories and continue", () => {
-  //   cy.visit("https://example.cypress.io");
-  // });
+  it("should pass room step", () => {
+    cy.get('[data-testid="enter-room-input"]').type(
+      "Most Agile Team out there !"
+    );
+    cy.get('[data-testid="enter-room-submit"]').click();
+    cy.get('[data-testid="error-message"]').should(
+      "have.css",
+      "display",
+      "none"
+    );
+  });
+  it("should get error on story step by trying to add new one or save", () => {
+    cy.get('[data-testid="create-story-text"]').should(
+      "have.text",
+      "Create new story"
+    );
+    cy.get('[data-testid="create-story-info-text"]').should(
+      "have.text",
+      "[ Add multiple or one story ]"
+    );
+    // Error on Add New
+    cy.get('[data-testid="create-story-add"]').click();
+    cy.get('[data-testid="error-message"]').should(
+      "have.css",
+      "display",
+      "none"
+    );
+    // Error on Save
+    cy.get('[data-testid="create-story-add"]').click();
+    cy.get('[data-testid="error-message"]').should(
+      "have.css",
+      "display",
+      "none"
+    );
+  });
+  it("should be able to add multiple stories and stay on same step", () => {
+    cy.get('[data-testid="create-story-input"]').type(
+      "FGTH-1234: Technical debt jira"
+    );
+    cy.get('[data-testid="create-story-add"]').click();
+    cy.get('[data-testid="create-story-input"]').type("FGTH-4321: Refactoring");
+    cy.get('[data-testid="create-story-add"]').click();
+    cy.get('[data-testid="create-story-input"]').type(
+      "FGTH-4545: One more story"
+    );
+    cy.get('[data-testid="create-story-add"]').click();
+    // Make sure button Save is still there - we know we are on the same step
+    cy.get('[data-testid="create-story-submit"]').should("have.text", "Save");
+  });
+  it("should be able to save stories and continue", () => {
+    cy.get('[data-testid="create-story-input"]').type(
+      "FGTH-7777: Last story for the sprint"
+    );
+    cy.get('[data-testid="create-story-submit"]').click();
+  });
   // it("should choose common sequence", () => {
   //   cy.visit("https://example.cypress.io");
   // });
