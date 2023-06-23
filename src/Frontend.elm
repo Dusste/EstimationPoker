@@ -688,13 +688,14 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ Html.h1 [ Attr.css [ Tw.mb_20, Tw.leading_relaxed, Bp.lg [ Tw.leading_none ] ] ] [ text "Hi ! Welcome to EST Poker !" ]
-                                    , Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_2xl, Tw.italic, Tw.mb_10, Tw.mt_0, Tw.font_extralight ] ] [ text "[ Simple web app for estimation story points within team ]" ]
-                                    , Html.p [ Attr.css [ Tw.rounded, Tw.border_color Tw.teal_400, Tw.border_2, Tw.border_solid, Tw.p_5, Tw.mb_10 ] ] [ text "Precise Planning, Efficient Execution, Blazing Fast !" ]
+                                    [ Html.h1 [ Attr.css [ Tw.mb_20, Tw.leading_relaxed, Bp.lg [ Tw.leading_none ] ], Attr.attribute "data-testid" "intro-h1" ] [ text "Hi ! Welcome to EST Poker !" ]
+                                    , Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_2xl, Tw.italic, Tw.mb_10, Tw.mt_0, Tw.font_extralight ], Attr.attribute "data-testid" "intro-sub-head" ] [ text "[ Simple web app for estimation story points within team ]" ]
+                                    , Html.p [ Attr.css [ Tw.rounded, Tw.border_color Tw.teal_400, Tw.border_2, Tw.border_solid, Tw.p_5, Tw.mb_10 ], Attr.attribute "data-testid" "intro-punchline" ] [ text "Precise Planning, Efficient Execution, Blazing Fast !" ]
                                     , Button.new
                                         |> Button.withText "Get Started →"
                                         |> Button.withJumboStyle
                                         |> Button.withOnClick StartAsAdmin
+                                        |> Button.withTestId "intro-submit"
                                         |> Button.toHtml
                                     ]
                                 ]
@@ -724,7 +725,7 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ Html.h2 [ Attr.css [ Tw.mt_0, Tw.mb_4 ] ] [ text "Add your name" ] ]
+                                    [ Html.h2 [ Attr.css [ Tw.mt_0, Tw.mb_4 ], Attr.attribute "data-testid" "enter-name-admin-text" ] [ text "Add your name" ] ]
                                 , Html.div
                                     [ Attr.css
                                         [ Bp.sm
@@ -734,7 +735,7 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ]
+                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ], Attr.attribute "data-testid" "enter-name-admin-info-text" ]
                                         [ text "[ You're about to become an admin ]" ]
                                     , Input.new
                                         |> Input.withHandleInput
@@ -744,6 +745,7 @@ view model =
                                         |> Input.withPlaceholder "eq: Steve"
                                         |> Input.withPrimaryStyles
                                         |> Input.withError model.error
+                                        |> Input.withTestId "enter-name-admin-input"
                                         |> Input.toHtml
                                     ]
                                 , Html.div
@@ -760,6 +762,7 @@ view model =
                                         |> Button.withText "Save"
                                         |> Button.withPrimaryStyle
                                         |> Button.withOnClick (SendName Admin)
+                                        |> Button.withTestId "enter-name-admin-submit"
                                         |> Button.toHtml
                                     ]
                                 ]
@@ -856,7 +859,7 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ Html.h2 [ Attr.css [ Tw.mt_0, Tw.mb_4 ] ] [ text "Create new room" ] ]
+                                    [ Html.h2 [ Attr.css [ Tw.mt_0, Tw.mb_4 ], Attr.attribute "data-testid" "enter-room-text" ] [ text "Create new room" ] ]
                                 , Html.div
                                     [ Attr.css
                                         [ Bp.sm
@@ -866,7 +869,7 @@ view model =
                                             ]
                                         ]
                                     ]
-                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ] [ text "[ Place where you can vote for stories ]" ]
+                                    [ Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ], Attr.attribute "data-testid" "enter-room-info-text" ] [ text "[ Place where you can vote for stories ]" ]
                                     , Input.new
                                         |> Input.withHandleInput
                                             StoreRoom
@@ -875,6 +878,7 @@ view model =
                                         |> Input.withPlaceholder "eq: Engineering ninjas !"
                                         |> Input.withPrimaryStyles
                                         |> Input.withError model.error
+                                        |> Input.withTestId "enter-room-input"
                                         |> Input.toHtml
                                     ]
                                 , Html.div
@@ -891,6 +895,7 @@ view model =
                                         |> Button.withText "Create"
                                         |> Button.withPrimaryStyle
                                         |> Button.withOnClick SendRoom
+                                        |> Button.withTestId "enter-room-submit"
                                         |> Button.toHtml
                                     ]
                                 ]
@@ -1988,6 +1993,7 @@ viewNotifications { error, announcement } =
                 , Tw.text_color Tw.red_800
                 , Tw.bg_color Tw.red_200
                 ]
+            , Attr.attribute "data-testid" "error-message"
             ]
             [ Svgs.iconError
             , case error of

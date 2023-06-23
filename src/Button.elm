@@ -41,12 +41,12 @@ import Types exposing (..)
 
 
 type Button constraints
-    = Button { txt : String, handleClick : FrontendMsg, styles : List Css.Style, disabled : Bool }
+    = Button { txt : String, handleClick : FrontendMsg, styles : List Css.Style, disabled : Bool, testId : String }
 
 
 new : Button { needsInteractivity : () }
 new =
-    Button { txt = "", handleClick = NoOp, styles = [], disabled = False }
+    Button { txt = "", handleClick = NoOp, styles = [], disabled = False, testId = "" }
 
 
 withDisabled : Button { constraints | needsInteractivity : () } -> Button { constraints | hasInteractivity : () }
@@ -84,13 +84,18 @@ withOnClick message (Button constraints) =
     Button { constraints | handleClick = message }
 
 
+withTestId : String -> Button { constraints | hasTextOrIcon : (), hasStyles : (), hasInteractivity : () } -> Button { constraints | hasInteractivity : (), hasTextOrIcon : (), hasStyles : () }
+withTestId str (Button constraints) =
+    Button { constraints | testId = str }
+
+
 toHtml : Button { constraints | hasInteractivity : (), hasTextOrIcon : (), hasStyles : () } -> Html FrontendMsg
 toHtml (Button constraints) =
     let
-        { txt, handleClick, styles } =
+        { txt, handleClick, styles, testId } =
             constraints
     in
-    Html.button [ onClick handleClick, Attr.css styles ] [ text txt ]
+    Html.button [ onClick handleClick, Attr.css styles, Attr.attribute "data-testid" testId ] [ text txt ]
 
 
 buttonStyle : List Css.Style

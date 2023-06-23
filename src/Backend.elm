@@ -3,7 +3,6 @@ module Backend exposing (..)
 import Dict
 import Lamdera exposing (ClientId, SessionId, broadcast, onConnect, onDisconnect, sendToBackend, sendToFrontend)
 import Types exposing (..)
-import Util
 
 
 type alias Model =

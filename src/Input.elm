@@ -19,6 +19,7 @@ type Input constraints
         , styles : List Css.Style
         , error : InvalidTextFiled
         , msgOnEnter : Attribute FrontendMsg
+        , testId : String
         }
 
 
@@ -31,6 +32,7 @@ new =
         , styles = []
         , error = Nothing
         , msgOnEnter = Attr.css []
+        , testId = ""
         }
 
 
@@ -82,10 +84,15 @@ withError maybeError (Input constraints) =
             Input constraints
 
 
+withTestId : String -> Input { constraints | hasInteractivity : (), hasError : () } -> Input { constraints | hasError : (), hasInteractivity : () }
+withTestId str (Input constraints) =
+    Input { constraints | testId = str }
+
+
 toHtml : Input { constraints | hasError : (), hasInteractivity : () } -> Html FrontendMsg
 toHtml (Input constraints) =
     let
-        { textValue, placeholderText, handleInput, styles, msgOnEnter } =
+        { textValue, placeholderText, handleInput, styles, msgOnEnter, testId } =
             constraints
     in
     Html.input
@@ -94,6 +101,7 @@ toHtml (Input constraints) =
         , onInput handleInput
         , Attr.value textValue
         , Attr.placeholder placeholderText
+        , Attr.attribute "data-testid" testId
         , msgOnEnter
         ]
         []
