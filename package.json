@@ -1,11 +1,13 @@
 {
   "scripts": {
     "cypress:visual": "npx cypress open",
-    "cypress": "cypress run --headless --browser chrome"
+    "test": "lamdera live & cypress run --headless --browser chrome",
+    "prepare": "husky install"
   },
   "devDependencies": {
     "cypress": "^12.15.0",
     "elm-tailwind-modules": "^0.5.0-alpha2",
+    "husky": "^8.0.3",
     "postcss": "^8.4.21",
     "tailwindcss": "^3.2.7"
   }

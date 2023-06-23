@@ -1,3 +1,4 @@
 node_modules
 elm-stuff
 cypress/downloads
+cypress/screenshots
