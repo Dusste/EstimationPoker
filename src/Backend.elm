@@ -3,6 +3,7 @@ module Backend exposing (..)
 import Dict
 import Lamdera exposing (ClientId, SessionId, broadcast, onConnect, onDisconnect, sendToBackend, sendToFrontend)
 import Types exposing (..)
+import Util
 
 
 type alias Model =
@@ -25,6 +26,15 @@ init =
     )
 
 
+defaultRoom : Room
+defaultRoom =
+    { users = []
+    , roomName = ValidTextField "Room name not availabe" -- @TODO: attend this
+    , stories = []
+    , sequence = Default
+    }
+
+
 update : BackendMsg -> Model -> ( Model, Cmd BackendMsg )
 update msg model =
     case msg of
@@ -43,13 +53,14 @@ updateFromFrontend sessionId clientId msg model =
                 initiateNewRoom =
                     Dict.insert model.index
                         { users =
-                            [ { defaultUser
-                                | sessionId = sessionId
-                                , name = adminName
-                                , isAdmin = True
+                            [ { card = Nothing
+                              , voteState = NotVoted
+                              , sessionId = sessionId
+                              , name = adminName
+                              , isAdmin = True
                               }
                             ]
-                        , roomName = ""
+                        , roomName = ValidTextField "Room name not available" -- @TODO: attend this
                         , stories = []
                         , sequence = Default
                         }

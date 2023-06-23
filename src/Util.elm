@@ -388,19 +388,6 @@ pluralize num initialString =
         initialString ++ "s"
 
 
-onEnterWithCred : Credentials -> (Credentials -> FrontendMsg) -> Attribute FrontendMsg
-onEnterWithCred cred msg =
-    let
-        isEnter code =
-            if code == 13 then
-                Json.succeed <| msg cred
-
-            else
-                Json.fail "not ENTER"
-    in
-    on "keydown" (Json.andThen isEnter keyCode)
-
-
 onEnter : FrontendMsg -> Attribute FrontendMsg
 onEnter msg =
     let
@@ -414,22 +401,24 @@ onEnter msg =
     on "keydown" (Json.andThen isEnter keyCode)
 
 
-validateInput : Maybe String -> Result String ValidTextField
-validateInput maybeStr =
+validateInput : String -> Result String ValidTextField
+validateInput string =
     let
-        toResult : Maybe String -> Result String ValidTextField
-        toResult ms =
-            ms |> Result.fromMaybe "Input is invalid"
+        fromStringToResult : String -> Result String (String -> ValidTextField) -> Result String ValidTextField
+        fromStringToResult input =
+            Result.andThen
+                (\constructor ->
+                    if String.trim input |> String.isEmpty then
+                        Err "Input is empty"
 
-        toValidResult : ValidTextField -> Result String ValidTextField
-        toValidResult str =
-            if String.trim str |> String.isEmpty then
-                Err "Input is empty"
-
-            else
-                Ok <| String.trim str
+                    else
+                        Ok (constructor (String.trim input))
+                )
     in
-    maybeStr
-        |> toResult
-        |> Result.andThen
-            toValidResult
+    Ok ValidTextField
+        |> fromStringToResult string
+
+
+fromValidTextFieldToString : ValidTextField -> String
+fromValidTextFieldToString (ValidTextField string) =
+    string

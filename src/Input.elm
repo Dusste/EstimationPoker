@@ -11,24 +11,6 @@ import Types exposing (..)
 import Util
 
 
-
-{-
-   inputStyle
-       |> withError model.error
-       |> withSendOnEnter
-           (Util.onEnterWithCred
-               Admin
-               SendName
-           )
-       |> withPlaceholder "eq: Steve"
-       |> viewInput StoreName
-           (model.name
-               |> Maybe.withDefault ""
-           )
-   ]
--}
-
-
 type Input constraints
     = Input
         { textValue : String

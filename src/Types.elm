@@ -14,9 +14,9 @@ type alias FrontendModel =
     , url : String
     , credentials : Credentials
     , status : Status
-    , name : Maybe String
-    , roomName : Maybe String
-    , editRoomName : Maybe String
+    , name : String
+    , roomName : String
+    , editedRoomName : EditRoomName
     , story : Story
     , stories : List Story
     , error : InvalidTextFiled
@@ -26,7 +26,6 @@ type alias FrontendModel =
     , clock : Int
     , shouldEnableCustomSequence : Bool
     , storyCount : Int
-    , editedStory : Story
     , sequence : Sequence
     , chooseSequence : CommonSequence
     , shouldStartClock : Bool
@@ -37,6 +36,11 @@ type alias FrontendModel =
     , shouldStartChartAnimation : Bool
     , announcement : List String
     }
+
+
+type EditRoomName
+    = WrappedEditState
+    | UnwrappedEditState
 
 
 type alias BackendModel =
@@ -64,7 +68,8 @@ type alias User =
 
 type Story
     = Story StoryId StoryName
-    | NoStory InvalidTextFiled
+    | Edit StoryId StoryName
+    | NoStory
 
 
 type alias StoryId =
@@ -114,8 +119,8 @@ type alias InvalidTextFiled =
     Maybe String
 
 
-type alias ValidTextField =
-    String
+type ValidTextField
+    = ValidTextField String
 
 
 type Status
@@ -151,18 +156,9 @@ type alias ChartsData =
     }
 
 
-defaultRoom : Room
-defaultRoom =
-    { users = []
-    , roomName = "Room name not availabe"
-    , stories = []
-    , sequence = Default
-    }
-
-
 defaultUser : User
 defaultUser =
-    { name = "Name not available"
+    { name = ValidTextField "Name not available"
     , isAdmin = False
     , card = Nothing
     , sessionId = "Invalid session id"
@@ -181,6 +177,7 @@ type FrontendMsg
     | StoreName String
     | StoreRoom String
     | StoreStory String
+    | StoreEditStory String
     | SendName Credentials
     | SendRoom
     | SendEditedRoom
@@ -201,12 +198,11 @@ type FrontendMsg
     | NextStory
     | SkipStory
     | StartChartAnimation
-    | ShowDonutChart
-    | ShowBarChart
+    | ShowChart Chart
     | HideNotification
     | CopyRoomUrl
     | EditStory StoryId StoryName
-    | EditRoomName ValidTextField
+    | EditRoomName
     | AddStory
     | EnableSequenceInput
     | SendCustomSequence
@@ -245,9 +241,13 @@ type BackendMsg
     | UserDisconnected SessionId ClientId
 
 
+type alias RoomResponse =
+    { status : Status, roomName : ValidTextField, sessionId : SessionId, users : List User, stories : List Story }
+
+
 type ToFrontend
     = SendRoomIdToFE RoomParam
-    | ResRoomRoute { status : Status, roomName : ValidTextField, sessionId : SessionId, users : List User, stories : List Story }
+    | ResRoomRoute RoomResponse
     | UpdateRoom { sessionId : SessionId, name : ValidTextField }
     | SupplyBEData { users : List User, stories : List Story }
     | UsersStartTimer
