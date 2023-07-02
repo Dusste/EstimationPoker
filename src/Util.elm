@@ -432,33 +432,69 @@ itemHelp nums =
             let
                 isDigit char =
                     Char.isDigit char
+
+                filterDuplicates lst =
+                    case lst of
+                        [] ->
+                            []
+
+                        x :: xs ->
+                            if List.member x xs then
+                                filterDuplicates xs
+
+                            else
+                                x :: filterDuplicates xs
+
+                sortStringedIntsAndSpecialCases : List String -> List String
+                sortStringedIntsAndSpecialCases lst =
+                    let
+                        isSpecialCase str =
+                            String.contains str "1/2" || str == "?"
+
+                        ( specialCases, intsButStrings ) =
+                            List.partition isSpecialCase lst
+
+                        sortedIntsButStrings =
+                            intsButStrings |> List.filterMap String.toInt |> List.sort |> List.map String.fromInt
+                    in
+                    specialCases ++ sortedIntsButStrings
             in
             if String.length num > 0 then
                 Loop (num :: numsSoFar)
 
             else
                 {-
-                   Clean list on the end since we can get string-only item in list, which will result in bail out early, stoping us from proceeding
+                   Clean list at the end since we can get string-only item in list, which will result in bail out early, stoping us from proceeding
                    eg: " sdaddsa dsadsakmdasklmdklsa lkmdsakmda 33221321321312 1233232131231 3212313212133432 21 321 321 3 78 76 767767676 767 23"
                 -}
                 Done
                     (List.reverse numsSoFar
-                        |> List.map (String.filter (\c -> isDigit c || c == '/'))
+                        |> List.map
+                            (\str ->
+                                if String.contains "?" str then
+                                    " ? "
+
+                                else if String.contains "1/2" str then
+                                    " 1/2 "
+
+                                else if String.startsWith "0" str && String.length str > 1 then
+                                    String.toInt str |> Maybe.withDefault 0 |> String.fromInt
+
+                                else
+                                    str
+                            )
+                        -- Allow story to be estimated with "?" or "1/2"
+                        |> List.map (String.filter (\c -> isDigit c || c == '/' || c == '?'))
                         |> List.map (String.slice 0 3)
                         |> List.filter (not << String.isEmpty)
+                        |> filterDuplicates
+                        |> sortStringedIntsAndSpecialCases
                     )
     in
     Parser.succeed (checkNum nums)
         |. spacesParser
         |= (Parser.getChompedString <| Parser.chompWhile (\c -> c /= ' '))
         |. spacesParser
-
-
-itemParser : Parser.Parser String
-itemParser =
-    Parser.getChompedString <|
-        Parser.succeed ()
-            |. Parser.chompWhile (\c -> Char.isDigit c)
 
 
 itemUnitList : Parser.Parser (List String)

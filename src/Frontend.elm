@@ -1025,7 +1025,6 @@ view model =
                                             text ""
                                         , Html.ul [ Attr.css [ Tw.text_color Tw.white, Tw.list_none, Tw.flex, Tw.flex_wrap, Tw.items_center, Tw.p_0, Tw.mx_auto ] ]
                                             (Util.getCommonSequenceConfig model.chooseSequence
-                                                |> Debug.log "Dsuan"
                                                 |> List.map
                                                     (\config ->
                                                         viewCommonSequence config
@@ -1302,7 +1301,7 @@ viewCustomSequence { sequence, sequenceAsInput, error, shouldEnableCustomSequenc
                     StoreSequence
                     sequenceAsInput
                 |> Input.withSendOnEnter CheckSequence
-                |> Input.withPlaceholder "eg: 23 47 86 21 90"
+                |> Input.withPlaceholder "eg: 1/2 23 47 86 ? 100 90"
                 |> Input.withPrimaryStyles
                 |> Input.withError error
                 |> Input.toHtml
@@ -1330,8 +1329,9 @@ viewCustomSequence { sequence, sequenceAsInput, error, shouldEnableCustomSequenc
                     ]
                     [ Html.p [ Attr.css [ Tw.mt_0 ] ] [ text "It comes with couple of constrains:" ]
                     , Html.ul [ Attr.css [ Tw.list_none, Tw.p_0, Tw.m_0, Tw.text_left ] ]
-                        [ Html.li [] [ text """- Enter 12 numbers separated by " " (space)""" ]
-                        , Html.li [] [ text """- 3 digit max per item """ ]
+                        [ Html.li [] [ text """- Special cases: '1/2' as 0.5 or '?'""" ]
+                        , Html.li [] [ text """- 12 set of numbers separated by " " (space)""" ]
+                        , Html.li [] [ text """- 3 digit max per set """ ]
                         ]
                     , Html.div
                         [ Attr.css
