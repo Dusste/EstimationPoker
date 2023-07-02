@@ -283,7 +283,7 @@ defaultCards =
     , { name = "20", value = 20 }
     , { name = "40", value = 40 }
     , { name = "100", value = 100 }
-    , { name = "?", value = 0 } -- TODO: Figure out how to display it as "?" in views (-100 ?)
+    , { name = "?", value = -1 }
     , { name = 0x2615 |> Char.fromCode |> String.fromChar, value = 0 }
     ]
 
@@ -307,7 +307,7 @@ fromStringToCards seqStr =
                             val =
                                 case str of
                                     "?" ->
-                                        toFloat 0
+                                        toFloat -1
 
                                     "1/2" ->
                                         0.5
@@ -321,7 +321,7 @@ fromStringToCards seqStr =
 
 defaultSequenceValues : SequenceString
 defaultSequenceValues =
-    "0, 1/2, 1, 2, 3, 5, 13, 20, 40, 100, ?" ++ (0x2615 |> Char.fromCode |> String.fromChar)
+    "0, 1/2, 1, 2, 3, 5, 13, 20, 40, 100, ?," ++ (0x2615 |> Char.fromCode |> String.fromChar)
 
 
 option2SequenceValues : SequenceString
@@ -443,7 +443,7 @@ itemHelp nums =
                 -}
                 Done
                     (List.reverse numsSoFar
-                        |> List.map (String.filter isDigit)
+                        |> List.map (String.filter (\c -> isDigit c || c == '/'))
                         |> List.map (String.slice 0 3)
                         |> List.filter (not << String.isEmpty)
                     )

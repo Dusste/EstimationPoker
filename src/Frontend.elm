@@ -1025,6 +1025,7 @@ view model =
                                             text ""
                                         , Html.ul [ Attr.css [ Tw.text_color Tw.white, Tw.list_none, Tw.flex, Tw.flex_wrap, Tw.items_center, Tw.p_0, Tw.mx_auto ] ]
                                             (Util.getCommonSequenceConfig model.chooseSequence
+                                                |> Debug.log "Dsuan"
                                                 |> List.map
                                                     (\config ->
                                                         viewCommonSequence config
@@ -1608,7 +1609,11 @@ viewNameCardGroup { voteState, card, name } =
             Voted ->
                 case card of
                     Just crd ->
-                        Html.span [ Attr.css [] ] [ crd |> String.fromFloat |> text ]
+                        if crd == -1 then
+                            Html.span [ Attr.css [] ] [ text "?" ]
+
+                        else
+                            Html.span [ Attr.css [] ] [ crd |> String.fromFloat |> text ]
 
                     Nothing ->
                         text ""
@@ -1850,7 +1855,13 @@ viewCharts model =
                                                 [ Html.div [ Attr.css [ Tw.flex, Tw.flex_col, Tw.gap_4, Bp.lg [ Tw.flex_row ] ] ]
                                                     [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4 ] ]
                                                         [ Html.span [ Attr.css [ Css.width (Css.px 31), Css.height (Css.px 31), Tw.bg_color (Util.getColor int), Tw.hidden, Bp.lg [ Tw.block ] ] ] []
-                                                        , Html.span [ Attr.css [ Css.minWidth (Css.px 40) ] ] [ entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text ]
+                                                        , Html.span [ Attr.css [ Css.minWidth (Css.px 40) ] ]
+                                                            [ if (entry.uniqueVoteValue |> Maybe.withDefault 0) == -1 then
+                                                                text "?"
+
+                                                              else
+                                                                entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text
+                                                            ]
                                                         , Html.span [ Attr.css [ Css.minWidth (Css.px 57) ] ] [ text <| Util.roundFloat entry.percentage 2 ++ "%" ]
                                                         , Html.span [ Attr.css [ Css.minWidth (Css.px 123) ] ] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " " ++ Util.pluralize entry.numOfVoters "player" ++ ")" ]
                                                         ]
@@ -1903,7 +1914,13 @@ viewCharts model =
                                                     [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4, Bp.lg [ Tw.justify_end ] ] ]
                                                         [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4 ] ]
                                                             [ Html.span [ Attr.css [ Css.width (Css.px 31), Css.height (Css.px 31), Tw.bg_color (Util.getColor int) ] ] []
-                                                            , Html.span [ Attr.css [ Css.minWidth (Css.px 40) ] ] [ entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text ]
+                                                            , Html.span [ Attr.css [ Css.minWidth (Css.px 40) ] ]
+                                                                [ if (entry.uniqueVoteValue |> Maybe.withDefault 0) == -1 then
+                                                                    text "?"
+
+                                                                  else
+                                                                    entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text
+                                                                ]
                                                             , Html.span [ Attr.css [ Css.minWidth (Css.px 57) ] ] [ text <| Util.roundFloat entry.percentage 2 ++ "%" ]
                                                             , Html.span [ Attr.css [ Css.minWidth (Css.px 123) ] ] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " " ++ Util.pluralize entry.numOfVoters "player" ++ ")" ]
                                                             ]
