@@ -5,16 +5,17 @@ import Dict exposing (Dict)
 import Html.Styled as Html exposing (Attribute)
 import Html.Styled.Events exposing (keyCode, on)
 import Json.Decode as Json
+import Parser exposing ((|.), (|=), Step(..))
 import Tailwind.Theme as Tw
 import Tailwind.Utilities as Tw
 import Types exposing (..)
 import Url exposing (Url)
-import Url.Parser as Parser exposing ((</>), Parser)
+import Url.Parser as UrlParser exposing ((</>))
 
 
 parseUrl : Url -> Route
 parseUrl url =
-    case Parser.parse matchRoute url of
+    case UrlParser.parse matchRoute url of
         Just route ->
             route
 
@@ -22,19 +23,19 @@ parseUrl url =
             NotFound
 
 
-roomIdParser : Parser (RoomParam -> a) a
+roomIdParser : UrlParser.Parser (RoomParam -> a) a
 roomIdParser =
-    Parser.custom "ROOMPARAM" <|
+    UrlParser.custom "ROOMPARAM" <|
         \roomParam ->
             String.toInt roomParam
 
 
-matchRoute : Parser (Route -> a) a
+matchRoute : UrlParser.Parser (Route -> a) a
 matchRoute =
-    Parser.oneOf
-        [ Parser.map Home Parser.top
-        , Parser.map InviteRoute (Parser.s "invite" </> roomIdParser)
-        , Parser.map RoomRoute (Parser.s "room" </> roomIdParser)
+    UrlParser.oneOf
+        [ UrlParser.map Home UrlParser.top
+        , UrlParser.map InviteRoute (UrlParser.s "invite" </> roomIdParser)
+        , UrlParser.map RoomRoute (UrlParser.s "room" </> roomIdParser)
         ]
 
 
@@ -294,12 +295,12 @@ fromStringToCards seqStr =
         |> List.map
             (\str ->
                 let
-                    trimedStringInt =
+                    trimmedStringInt =
                         str |> String.trim
                 in
-                case trimedStringInt |> String.toInt of
+                case trimmedStringInt |> String.toInt of
                     Just int ->
-                        { name = trimedStringInt, value = toFloat int }
+                        { name = trimmedStringInt, value = toFloat int }
 
                     Nothing ->
                         let
@@ -314,13 +315,13 @@ fromStringToCards seqStr =
                                     _ ->
                                         0
                         in
-                        { name = trimedStringInt, value = val }
+                        { name = trimmedStringInt, value = val }
             )
 
 
 defaultSequenceValues : SequenceString
 defaultSequenceValues =
-    "0, 1/2, 1, 2, 3, 5, 13, 20, 40, 100, ?," ++ (0x2615 |> Char.fromCode |> String.fromChar)
+    "0, 1/2, 1, 2, 3, 5, 13, 20, 40, 100, ?" ++ (0x2615 |> Char.fromCode |> String.fromChar)
 
 
 option2SequenceValues : SequenceString
@@ -422,3 +423,80 @@ validateInput string =
 fromValidTextFieldToString : ValidTextField -> String
 fromValidTextFieldToString (ValidTextField string) =
     string
+
+
+itemHelp : List String -> Parser.Parser (Step (List String) (List String))
+itemHelp nums =
+    let
+        checkNum numsSoFar num =
+            let
+                isDigit char =
+                    Char.isDigit char
+            in
+            if String.length num > 0 then
+                Loop (num :: numsSoFar)
+
+            else
+                {-
+                   Clean list on the end since we can get string-only item in list, which will result in bail out early, stoping us from proceeding
+                   eg: " sdaddsa dsadsakmdasklmdklsa lkmdsakmda 33221321321312 1233232131231 3212313212133432 21 321 321 3 78 76 767767676 767 23"
+                -}
+                Done
+                    (List.reverse numsSoFar
+                        |> List.map (String.filter isDigit)
+                        |> List.map (String.slice 0 3)
+                        |> List.filter (not << String.isEmpty)
+                    )
+    in
+    Parser.succeed (checkNum nums)
+        |. spacesParser
+        |= (Parser.getChompedString <| Parser.chompWhile (\c -> c /= ' '))
+        |. spacesParser
+
+
+itemParser : Parser.Parser String
+itemParser =
+    Parser.getChompedString <|
+        Parser.succeed ()
+            |. Parser.chompWhile (\c -> Char.isDigit c)
+
+
+itemUnitList : Parser.Parser (List String)
+itemUnitList =
+    Parser.loop [] itemHelp
+
+
+spacesParser : Parser.Parser ()
+spacesParser =
+    Parser.chompWhile (\c -> c == ' ')
+
+
+sequence : Parser.Parser Sequence
+sequence =
+    let
+        sizeLimit =
+            12
+
+        hasReachedLimit lst =
+            List.length lst >= sizeLimit
+
+        checkSequence : List String -> Parser.Parser Sequence
+        checkSequence lst =
+            if hasReachedLimit lst then
+                Parser.succeed <| Accept (lst |> List.take sizeLimit |> String.join " ")
+
+            else
+                Parser.succeed <| InTransition (lst |> String.join " ")
+    in
+    itemUnitList
+        |> Parser.andThen checkSequence
+
+
+fromStringToSequence : String -> Sequence
+fromStringToSequence input =
+    case Parser.run sequence input of
+        Ok validSequence ->
+            validSequence
+
+        Err _ ->
+            Reject

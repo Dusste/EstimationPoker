@@ -26,6 +26,7 @@ type alias FrontendModel =
     , clock : Int
     , shouldEnableCustomSequence : Bool
     , storyCount : Int
+    , sequenceAsInput : String
     , sequence : Sequence
     , chooseSequence : CommonSequence
     , shouldStartClock : Bool
@@ -192,6 +193,7 @@ type FrontendMsg
     | HideCards
     | ClearVotes
     | StoreSequence SequenceString
+    | CheckSequence
     | SendSequence
     | SelectSequence CommonSequence
     | FinishVoting

@@ -474,7 +474,7 @@ updateFromFrontend sessionId clientId msg model =
         SendCustomSequenceToBE customSequence roomId ->
             let
                 seqSeparatedByComma =
-                    customSequence |> String.split "-" |> String.join ","
+                    customSequence |> String.split " " |> String.join ","
 
                 updateRecord =
                     Maybe.map (\room -> { room | sequence = CustomSequence seqSeparatedByComma })

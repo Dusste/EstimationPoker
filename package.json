@@ -2,7 +2,8 @@
   "scripts": {
     "cypress:visual": "npx cypress open",
     "test": "lamdera live & cypress run --headless --browser chrome",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "elm:test": "elm-test"
   },
   "devDependencies": {
     "cypress": "^12.15.0",

@@ -53,6 +53,7 @@ initialModel url key =
     , status = Intro
     , name = ""
     , roomName = ""
+    , sequenceAsInput = ""
     , editedRoomName = WrappedEditState
     , story = NoStory
     , error = Nothing
@@ -386,58 +387,21 @@ update msg model =
             ( { model | clock = model.clock + 1 }, Cmd.none )
 
         StoreSequence str ->
-            let
-                trimedStr =
-                    String.trim str
-            in
-            let
-                fromStringToSequence : String -> Sequence
-                fromStringToSequence input =
-                    {-
-                       TODO:
-                       -Number should not start with 0
-                       -Find way how to add 0.5 points
-                    -}
-                    let
-                        sizeLimit =
-                            12
-
-                        hasReachedSizeLimit =
-                            input
-                                |> String.split "-"
-                                |> List.filterMap String.toInt
-                                |> List.length
-                                |> (<=) sizeLimit
-                    in
-                    if input == "" || String.startsWith " " input || String.startsWith "-" input then
+            ( { model
+                | sequenceAsInput = str
+                , sequence =
+                    if str == "" then
                         Reject
 
-                    else if hasReachedSizeLimit then
-                        Accept
-                            (input
-                                |> String.filter (\ch -> Char.isDigit ch || ch == '-')
-                                |> String.split "-"
-                                |> List.map (String.slice 0 3)
-                                |> List.take sizeLimit
-                                |> String.join "-"
-                            )
-
-                    else if String.endsWith "- " str then
-                        InTransition <| String.dropRight 1 input ++ "-"
-
-                    else if String.endsWith "--" str then
-                        InTransition <| String.dropRight 1 input
-
-                    else if String.endsWith " " str then
-                        InTransition <| input ++ "-"
-
                     else
-                        InTransition
-                            (input
-                                |> String.filter (\ch -> Char.isDigit ch || ch == '-')
-                            )
-            in
-            ( { model | sequence = fromStringToSequence trimedStr, error = Nothing }, Cmd.none )
+                        model.sequence
+                , error = Nothing
+              }
+            , Cmd.none
+            )
+
+        CheckSequence ->
+            ( { model | sequence = Util.fromStringToSequence model.sequenceAsInput, error = Nothing }, Cmd.none )
 
         SendSequence ->
             ( { model | status = PokerStep }
@@ -1075,8 +1039,8 @@ view model =
                                             ]
                                         ]
                                     , Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_lg, Tw.italic, Tw.mb_4, Tw.mt_0, Tw.font_extralight ] ]
-                                        [ text "[ or add your own sequence ]", Html.input [ onClick EnableSequenceInput, Attr.type_ "checkbox", Attr.css [ Tw.form_checkbox, Tw.cursor_pointer, Tw.text_color Tw.teal_400, Tw.bg_color Tw.transparent, Tw.p_3, Tw.ml_3, Tw.border, Tw.border_solid, Tw.border_color Tw.teal_400, Css.focus [ Tw.outline_0, Tw.ring_color Tw.transparent, Tw.ring_0, Tw.ring_offset_0 ] ] ] [] ]
-                                    , viewCustomSequence { sequence = model.sequence, error = model.error, shouldEnableCustomSequence = model.shouldEnableCustomSequence }
+                                        [ text "[ add your own sequence and press 'Enter' ]", Html.input [ onClick EnableSequenceInput, Attr.type_ "checkbox", Attr.css [ Tw.form_checkbox, Tw.cursor_pointer, Tw.text_color Tw.teal_400, Tw.bg_color Tw.transparent, Tw.p_3, Tw.ml_3, Tw.border, Tw.border_solid, Tw.border_color Tw.teal_400, Css.focus [ Tw.outline_0, Tw.ring_color Tw.transparent, Tw.ring_0, Tw.ring_offset_0 ] ] ] [] ]
+                                    , viewCustomSequence { sequence = model.sequence, sequenceAsInput = model.sequenceAsInput, error = model.error, shouldEnableCustomSequence = model.shouldEnableCustomSequence }
                                     ]
                                 ]
 
@@ -1321,8 +1285,8 @@ viewCommonSequence { msg, choosenSequence, sequenceValue, msgAttribute, borderSe
         ]
 
 
-viewCustomSequence : { sequence : Sequence, error : InvalidTextFiled, shouldEnableCustomSequence : Bool } -> Html FrontendMsg
-viewCustomSequence { sequence, error, shouldEnableCustomSequence } =
+viewCustomSequence : { sequence : Sequence, sequenceAsInput : String, error : InvalidTextFiled, shouldEnableCustomSequence : Bool } -> Html FrontendMsg
+viewCustomSequence { sequence, sequenceAsInput, error, shouldEnableCustomSequence } =
     Html.div
         [ Attr.css [ Tw.relative ] ]
         [ Html.div
@@ -1335,17 +1299,8 @@ viewCustomSequence { sequence, error, shouldEnableCustomSequence } =
             [ Input.new
                 |> Input.withHandleInput
                     StoreSequence
-                    (case sequence of
-                        Accept str ->
-                            str
-
-                        InTransition st ->
-                            st
-
-                        Reject ->
-                            ""
-                    )
-                |> Input.withSendOnEnter SendCustomSequence
+                    sequenceAsInput
+                |> Input.withSendOnEnter CheckSequence
                 |> Input.withPlaceholder "eg: 23 47 86 21 90"
                 |> Input.withPrimaryStyles
                 |> Input.withError error
@@ -1418,7 +1373,7 @@ viewCustomSequence { sequence, error, shouldEnableCustomSequence } =
                                 , Html.div
                                     [ Attr.css [ Tw.flex, Tw.flex_wrap ] ]
                                     (input
-                                        |> String.split "-"
+                                        |> String.split " "
                                         |> List.map
                                             (\intAsStr ->
                                                 Html.p
@@ -1454,7 +1409,7 @@ viewCustomSequence { sequence, error, shouldEnableCustomSequence } =
                 InTransition str ->
                     let
                         numbersUntilValidSequence =
-                            str |> String.split "-" |> List.filterMap String.toInt |> List.length |> (-) 12
+                            str |> String.split " " |> List.length |> (-) 12
                     in
                     Html.p [ Attr.css [ Tw.text_color Tw.orange_400 ] ] [ text <| String.fromInt numbersUntilValidSequence ++ " " ++ Util.pluralize (toFloat numbersUntilValidSequence) "number" ++ " to go" ]
 
