@@ -477,14 +477,19 @@ itemHelp nums =
                                 else if String.contains "1/2" str then
                                     " 1/2 "
 
-                                else if String.startsWith "0" str && String.length str > 1 then
-                                    String.toInt str |> Maybe.withDefault 0 |> String.fromInt
-
                                 else
                                     str
                             )
                         -- Allow story to be estimated with "?" or "1/2"
                         |> List.map (String.filter (\c -> isDigit c || c == '/' || c == '?'))
+                        |> List.map
+                            (\str ->
+                                if String.startsWith "0" str && String.length str > 1 then
+                                    String.toInt str |> Maybe.withDefault 0 |> String.fromInt
+
+                                else
+                                    str
+                            )
                         |> List.map (String.slice 0 3)
                         |> List.filter (not << String.isEmpty)
                         |> filterDuplicates
@@ -526,6 +531,19 @@ sequence =
     in
     itemUnitList
         |> Parser.andThen checkSequence
+
+
+
+{-
+   It takes input and produce unit of numbers divided by space
+    - Trim all special characters except: "1/2" and "?", those can live only as separate unit
+    - Trim zeros from beggining of unit
+    - Trim excess of numbers per unit, 3 numbers per unit permited
+    - It consider input as "Accept" when it has 12 units, otherwise it's in state of "InTransition"
+    - If it has unit containing only non-digits, it will skip it
+    - It's sorts and duplicates are filtered, on beggining of list it should be "1/2" and "?", if present, followed by ints
+
+-}
 
 
 fromStringToSequence : String -> Sequence

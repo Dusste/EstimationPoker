@@ -43,7 +43,7 @@ customSequenceTest =
         , test "output should be free from letters and special characters when combining them with numbers" <|
             \_ ->
                 Util.fromStringToSequence "   1f$#@d-3 %@#@%#3fd21 f%$#d32 kmk2m1231 f$%#d1 df8%$#%d12 3f-d12 fd@!33 fd@!_213 2d)(_f1 d*&f021 d(f3  hu7  "
-                    |> Expect.equal (Accept "1 3 7 13 21 21 32 33 212 213 312 321")
+                    |> Expect.equal (Accept "1 3 7 13 21 32 33 212 213 312 321 812")
         , test "output should have each sequence of numbers trimmed to 3 digits when it has 12 of them, if exceeds that threshold" <|
             \_ ->
                 Util.fromStringToSequence "33221321321312 1233232131231 3212313212133432 21 321 321 3 78 76 967767676 767 23"
@@ -60,6 +60,10 @@ customSequenceTest =
             \_ ->
                 Util.fromStringToSequence "1 2 3 4 5 6 7 8 9 10 11 12"
                     |> Expect.equal (Accept "1 2 3 4 5 6 7 8 9 10 11 12")
+        , test "output should have trimmed zeros in front" <|
+            \_ ->
+                Util.fromStringToSequence "  0001 00020 0030 041 055 060 0070 00081 $0009 0010 0011 0000000012 "
+                    |> Expect.equal (Accept "1 9 10 11 12 20 30 41 55 60 70 81")
         , test "output should not contain duplicates" <|
             \_ ->
                 Util.fromStringToSequence "100 101 102 103 100 105"
