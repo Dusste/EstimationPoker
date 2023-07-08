@@ -20,12 +20,16 @@ init usersList =
         chartData users =
             users
                 |> List.sortBy
-                    (\user ->
-                        let
-                            crd =
-                                user.card |> Maybe.withDefault 0.5
-                        in
-                        crd
+                    (\{ voteState } ->
+                        case voteState of
+                            Voted card ->
+                                card
+
+                            HiddenVote card ->
+                                card
+
+                            NotVoted ->
+                                -1
                     )
                 |> Util.toChartData 1 (usersList |> List.length |> toFloat)
 

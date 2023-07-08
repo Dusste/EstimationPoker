@@ -87,10 +87,10 @@ toChartDataTest =
             \_ ->
                 Util.toChartData 1 Mock.mockTeamSize Mock.mockUsersSortedList
                     |> Expect.equal
-                        [ { numOfVoters = 2, percentage = 20, uniqueVoteValue = Just 1 }
-                        , { numOfVoters = 2, percentage = 20, uniqueVoteValue = Just 2 }
-                        , { numOfVoters = 2, percentage = 20, uniqueVoteValue = Just 3 }
-                        , { numOfVoters = 2, percentage = 20, uniqueVoteValue = Just 4 }
-                        , { numOfVoters = 2, percentage = 20, uniqueVoteValue = Just 5 }
+                        [ { numOfVoters = 2, percentage = 20, uniqueVoteValue = 1 }
+                        , { numOfVoters = 2, percentage = 20, uniqueVoteValue = 2 }
+                        , { numOfVoters = 2, percentage = 20, uniqueVoteValue = 3 }
+                        , { numOfVoters = 2, percentage = 20, uniqueVoteValue = 4 }
+                        , { numOfVoters = 2, percentage = 20, uniqueVoteValue = 5 }
                         ]
         ]

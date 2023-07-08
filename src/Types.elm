@@ -61,7 +61,6 @@ type alias Room =
 type alias User =
     { name : ValidTextField
     , isAdmin : Bool
-    , card : Maybe Float
     , sessionId : SessionId
     , voteState : VoteState
     }
@@ -141,8 +140,12 @@ type alias Index =
 
 type VoteState
     = NotVoted
-    | HiddenVote
-    | Voted
+    | HiddenVote Card
+    | Voted Card
+
+
+type alias Card =
+    Float
 
 
 type Credentials
@@ -151,7 +154,7 @@ type Credentials
 
 
 type alias ChartsData =
-    { uniqueVoteValue : Maybe Float
+    { uniqueVoteValue : Card
     , percentage : Float
     , numOfVoters : Float
     }
@@ -161,7 +164,6 @@ defaultUser : User
 defaultUser =
     { name = ValidTextField "Name not available"
     , isAdmin = False
-    , card = Nothing
     , sessionId = "Invalid session id"
     , voteState = NotVoted
     }
@@ -185,7 +187,7 @@ type FrontendMsg
     | SendStory
     | SendEditedStory Int
     | SaveStory
-    | ChooseCard Float String
+    | ChooseCard Card String
     | Tick Time.Posix
     | StartTime
     | ResetTime
@@ -223,7 +225,7 @@ type ToBackend
     | SendAdminNameToBE ValidTextField
     | SendUserNameToBE ValidTextField RoomParam
     | ReqRoomRoute RoomParam Credentials
-    | SendCard Float RoomParam SessionId
+    | SendCard Card RoomParam SessionId
     | StartTimerAndVote RoomParam
     | ResetTimerAndVote RoomParam
     | InitiateShowCards RoomParam

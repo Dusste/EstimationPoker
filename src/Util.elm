@@ -89,16 +89,39 @@ toChartData increment teamSize sortedLst =
         x :: xs ->
             let
                 listOfLeftValues =
-                    xs |> List.map (\u -> u.card)
+                    xs
+                        |> List.map
+                            (\{ voteState } ->
+                                case voteState of
+                                    Voted card ->
+                                        card
+
+                                    HiddenVote card ->
+                                        card
+
+                                    NotVoted ->
+                                        -1
+                            )
+
+                currentUsersCard =
+                    case x.voteState of
+                        Voted card ->
+                            card
+
+                        HiddenVote card ->
+                            card
+
+                        NotVoted ->
+                            -1
             in
             if List.isEmpty xs then
-                { numOfVoters = increment, percentage = increment / teamSize * 100, uniqueVoteValue = x.card } :: toChartData 1 teamSize []
+                { numOfVoters = increment, percentage = increment / teamSize * 100, uniqueVoteValue = currentUsersCard } :: toChartData 1 teamSize []
 
-            else if List.member x.card listOfLeftValues then
+            else if List.member currentUsersCard listOfLeftValues then
                 [] ++ toChartData (increment + 1) teamSize xs
 
             else
-                { uniqueVoteValue = x.card, percentage = increment / teamSize * 100, numOfVoters = increment } :: toChartData 1 teamSize xs
+                { uniqueVoteValue = currentUsersCard, percentage = increment / teamSize * 100, numOfVoters = increment } :: toChartData 1 teamSize xs
 
 
 getColor : Int -> Tw.Color

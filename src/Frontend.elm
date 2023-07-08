@@ -153,8 +153,7 @@ update msg model =
                                 , error = Nothing
                                 , name = Util.fromValidTextFieldToString validInput
                                 , users =
-                                    { card = Nothing
-                                    , sessionId = "Invalid session id"
+                                    { sessionId = "Invalid session id"
                                     , voteState = NotVoted
                                     , name = validInput
                                     , isAdmin = True
@@ -167,7 +166,7 @@ update msg model =
                         Employee ->
                             case model.sessionId of
                                 Just sessionId ->
-                                    ( { model | status = PokerStep, error = Nothing, name = "", users = { card = Nothing, voteState = NotVoted, isAdmin = False, sessionId = sessionId, name = validInput } :: model.users }
+                                    ( { model | status = PokerStep, error = Nothing, name = "", users = { voteState = NotVoted, isAdmin = False, sessionId = sessionId, name = validInput } :: model.users }
                                     , Cmd.batch
                                         [ sendToBackend <| SendUserNameToBE validInput (model.roomId |> Maybe.withDefault 1)
                                         , Nav.pushUrl model.key <| "/room/" ++ (model.roomId |> Maybe.withDefault 1 |> String.fromInt)
@@ -371,7 +370,7 @@ update msg model =
                                 |> List.map
                                     (\user ->
                                         if user.sessionId == justSessionId then
-                                            { user | card = Just cardValue, voteState = HiddenVote }
+                                            { user | voteState = HiddenVote cardValue }
 
                                         else
                                             user
@@ -538,7 +537,7 @@ updateFromBackend msg model =
                 updatedAnnouncement =
                     List.append model.announcement [ Util.fromValidTextFieldToString name ++ " has joined !" ]
             in
-            ( { model | users = { voteState = NotVoted, card = Nothing, sessionId = sessionId, name = name, isAdmin = False } :: model.users, announcement = updatedAnnouncement }
+            ( { model | users = { voteState = NotVoted, sessionId = sessionId, name = name, isAdmin = False } :: model.users, announcement = updatedAnnouncement }
             , Process.sleep 4000
                 |> Task.perform (\_ -> HideNotification)
             )
@@ -1125,44 +1124,39 @@ view model =
                                                 Employee ->
                                                     Html.h2 [ Attr.css [ Tw.m_0, Tw.break_all, Tw.flex, Tw.items_center ] ] [ model.roomName |> text ]
                                             ]
-                                        , case model.card of
-                                            Just _ ->
-                                                if model.shouldShowCharts then
-                                                    Html.div [ Attr.css [ Tw.flex, Tw.gap_2, Tw.text_xl ] ]
-                                                        [ Html.span
-                                                            [ case model.chart of
-                                                                Bar ->
-                                                                    Attr.css [ Tw.text_color Tw.gray_400 ]
+                                        , if model.card /= Nothing && model.shouldShowCharts then
+                                            Html.div [ Attr.css [ Tw.flex, Tw.gap_2, Tw.text_xl ] ]
+                                                [ Html.span
+                                                    [ case model.chart of
+                                                        Bar ->
+                                                            Attr.css [ Tw.text_color Tw.gray_400 ]
 
-                                                                Donut ->
-                                                                    Attr.css
-                                                                        [ Tw.text_color Tw.white
-                                                                        , Tw.cursor_pointer
-                                                                        ]
-                                                            , onClick <| ShowChart Bar
-                                                            ]
-                                                            [ text "Bar Chart" ]
-                                                        , Html.span [] [ text " | " ]
-                                                        , Html.span
-                                                            [ case model.chart of
-                                                                Donut ->
-                                                                    Attr.css [ Tw.text_color Tw.gray_400 ]
+                                                        Donut ->
+                                                            Attr.css
+                                                                [ Tw.text_color Tw.white
+                                                                , Tw.cursor_pointer
+                                                                ]
+                                                    , onClick <| ShowChart Bar
+                                                    ]
+                                                    [ text "Bar Chart" ]
+                                                , Html.span [] [ text " | " ]
+                                                , Html.span
+                                                    [ case model.chart of
+                                                        Donut ->
+                                                            Attr.css [ Tw.text_color Tw.gray_400 ]
 
-                                                                Bar ->
-                                                                    Attr.css
-                                                                        [ Tw.text_color Tw.white
-                                                                        , Tw.cursor_pointer
-                                                                        ]
-                                                            , onClick <| ShowChart Donut
-                                                            ]
-                                                            [ text "Donut Chart" ]
-                                                        ]
+                                                        Bar ->
+                                                            Attr.css
+                                                                [ Tw.text_color Tw.white
+                                                                , Tw.cursor_pointer
+                                                                ]
+                                                    , onClick <| ShowChart Donut
+                                                    ]
+                                                    [ text "Donut Chart" ]
+                                                ]
 
-                                                else
-                                                    text ""
-
-                                            Nothing ->
-                                                text ""
+                                          else
+                                            text ""
                                         ]
                                     , Html.h4 [ Attr.css [ Tw.text_2xl, Tw.text_color Tw.gray_400, Tw.font_extralight, Tw.break_all ] ]
                                         [ model.stories
@@ -1595,27 +1589,22 @@ viewButtonCommandLine { credentials, shouldShowCharts, stories, shouldStartClock
         ]
 
 
-viewNameCardGroup : { voteState : VoteState, card : Maybe Float, name : ValidTextField } -> List (Html FrontendMsg)
-viewNameCardGroup { voteState, card, name } =
+viewNameCardGroup : { voteState : VoteState, name : ValidTextField } -> List (Html FrontendMsg)
+viewNameCardGroup { voteState, name } =
     [ Html.div []
         [ case voteState of
-            HiddenVote ->
+            HiddenVote _ ->
                 Html.span [ Attr.class "checkmark" ] []
 
             NotVoted ->
                 text ""
 
-            Voted ->
-                case card of
-                    Just crd ->
-                        if crd == -1 then
-                            Html.span [ Attr.css [] ] [ text "?" ]
+            Voted card ->
+                if card == -1 then
+                    Html.span [ Attr.css [] ] [ text "?" ]
 
-                        else
-                            Html.span [ Attr.css [] ] [ crd |> String.fromFloat |> text ]
-
-                    Nothing ->
-                        text ""
+                else
+                    Html.span [ Attr.css [] ] [ card |> String.fromFloat |> text ]
         ]
     , Html.p [ Attr.css [ Tw.m_0 ] ] [ text <| Util.fromValidTextFieldToString name ]
     ]
@@ -1806,17 +1795,17 @@ viewSidebar { clock, url, roomId, users } =
                 , Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.p_0, Tw.m_0, Tw.flex_col, Tw.text_2xl, Tw.gap_4 ] ]
                     (users
                         |> List.map
-                            (\{ isAdmin, name, card, voteState } ->
+                            (\{ isAdmin, name, voteState } ->
                                 if isAdmin then
                                     Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.text_color Tw.blue_400, Tw.break_all ] ]
                                         (viewNameCardGroup
-                                            { voteState = voteState, card = card, name = name }
+                                            { voteState = voteState, name = name }
                                         )
 
                                 else
                                     Html.li [ Attr.css [ Tw.flex, Tw.justify_end, Tw.gap_4, Tw.break_all ] ]
                                         (viewNameCardGroup
-                                            { voteState = voteState, card = card, name = name }
+                                            { voteState = voteState, name = name }
                                         )
                             )
                     )
@@ -1840,12 +1829,16 @@ viewCharts model =
                             [ Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.flex_col, Tw.p_0, Tw.m_0, Tw.text_2xl, Tw.mb_10, Tw.gap_4 ] ]
                                 (model.users
                                     |> List.sortBy
-                                        (\user ->
-                                            let
-                                                crd =
-                                                    user.card |> Maybe.withDefault 0.5
-                                            in
-                                            crd
+                                        (\{ voteState } ->
+                                            case voteState of
+                                                Voted card ->
+                                                    card
+
+                                                HiddenVote card ->
+                                                    card
+
+                                                NotVoted ->
+                                                    -1
                                         )
                                     |> Util.toChartData 1 teamSize
                                     |> List.indexedMap
@@ -1855,11 +1848,11 @@ viewCharts model =
                                                     [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4 ] ]
                                                         [ Html.span [ Attr.css [ Css.width (Css.px 31), Css.height (Css.px 31), Tw.bg_color (Util.getColor int), Tw.hidden, Bp.lg [ Tw.block ] ] ] []
                                                         , Html.span [ Attr.css [ Css.minWidth (Css.px 40) ] ]
-                                                            [ if (entry.uniqueVoteValue |> Maybe.withDefault 0) == -1 then
+                                                            [ if entry.uniqueVoteValue == -1 then
                                                                 text "?"
 
                                                               else
-                                                                entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text
+                                                                entry.uniqueVoteValue |> String.fromFloat |> text
                                                             ]
                                                         , Html.span [ Attr.css [ Css.minWidth (Css.px 57) ] ] [ text <| Util.roundFloat entry.percentage 2 ++ "%" ]
                                                         , Html.span [ Attr.css [ Css.minWidth (Css.px 123) ] ] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " " ++ Util.pluralize entry.numOfVoters "player" ++ ")" ]
@@ -1899,12 +1892,16 @@ viewCharts model =
                                 [ Html.ul [ Attr.css [ Tw.list_none, Tw.flex, Tw.flex_col, Tw.p_0, Tw.m_0, Tw.text_2xl, Tw.mb_10, Tw.gap_4 ] ]
                                     (model.users
                                         |> List.sortBy
-                                            (\user ->
-                                                let
-                                                    crd =
-                                                        user.card |> Maybe.withDefault 0.5
-                                                in
-                                                crd
+                                            (\{ voteState } ->
+                                                case voteState of
+                                                    Voted card ->
+                                                        card
+
+                                                    HiddenVote card ->
+                                                        card
+
+                                                    NotVoted ->
+                                                        -1
                                             )
                                         |> Util.toChartData 1 teamSize
                                         |> List.indexedMap
@@ -1914,11 +1911,11 @@ viewCharts model =
                                                         [ Html.div [ Attr.css [ Tw.flex, Tw.gap_4 ] ]
                                                             [ Html.span [ Attr.css [ Css.width (Css.px 31), Css.height (Css.px 31), Tw.bg_color (Util.getColor int) ] ] []
                                                             , Html.span [ Attr.css [ Css.minWidth (Css.px 40) ] ]
-                                                                [ if (entry.uniqueVoteValue |> Maybe.withDefault 0) == -1 then
+                                                                [ if entry.uniqueVoteValue == -1 then
                                                                     text "?"
 
                                                                   else
-                                                                    entry.uniqueVoteValue |> Maybe.withDefault 0 |> String.fromFloat |> text
+                                                                    entry.uniqueVoteValue |> String.fromFloat |> text
                                                                 ]
                                                             , Html.span [ Attr.css [ Css.minWidth (Css.px 57) ] ] [ text <| Util.roundFloat entry.percentage 2 ++ "%" ]
                                                             , Html.span [ Attr.css [ Css.minWidth (Css.px 123) ] ] [ text <| "(" ++ (entry.numOfVoters |> String.fromFloat) ++ " " ++ Util.pluralize entry.numOfVoters "player" ++ ")" ]

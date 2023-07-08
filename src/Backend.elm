@@ -52,8 +52,7 @@ updateFromFrontend sessionId clientId msg model =
                 initiateNewRoom =
                     Dict.insert model.index
                         { users =
-                            [ { card = Nothing
-                              , voteState = NotVoted
+                            [ { voteState = NotVoted
                               , sessionId = sessionId
                               , name = adminName
                               , isAdmin = True
@@ -167,7 +166,7 @@ updateFromFrontend sessionId clientId msg model =
                         |> List.map
                             (\user ->
                                 if user.sessionId == sessionId then
-                                    { user | card = Just cardValue, voteState = HiddenVote }
+                                    { user | voteState = HiddenVote cardValue }
 
                                 else
                                     user
@@ -250,7 +249,18 @@ updateFromFrontend sessionId clientId msg model =
                     usrs
                         |> List.map
                             (\user ->
-                                { user | voteState = Voted }
+                                { user
+                                    | voteState =
+                                        case user.voteState of
+                                            Voted card ->
+                                                Voted card
+
+                                            HiddenVote card ->
+                                                Voted card
+
+                                            NotVoted ->
+                                                Voted -1
+                                }
                             )
 
                 updateRecord =
@@ -282,14 +292,14 @@ updateFromFrontend sessionId clientId msg model =
                         |> List.map
                             (\user ->
                                 case user.voteState of
-                                    Voted ->
-                                        { user | voteState = HiddenVote }
+                                    Voted card ->
+                                        { user | voteState = HiddenVote card }
 
                                     NotVoted ->
                                         { user | voteState = NotVoted }
 
-                                    HiddenVote ->
-                                        { user | voteState = HiddenVote }
+                                    HiddenVote card ->
+                                        { user | voteState = HiddenVote card }
                             )
 
                 updateRecord =
@@ -324,7 +334,7 @@ updateFromFrontend sessionId clientId msg model =
                 updateUsers =
                     users
                         |> List.map
-                            (\user -> { user | card = Nothing, voteState = NotVoted })
+                            (\user -> { user | voteState = NotVoted })
 
                 updateRecord =
                     Maybe.map (\room -> { room | users = updateUsers })
@@ -353,7 +363,7 @@ updateFromFrontend sessionId clientId msg model =
                 updateUsers =
                     users
                         |> List.map
-                            (\user -> { user | card = Nothing, voteState = NotVoted })
+                            (\user -> { user | voteState = NotVoted })
 
                 updateRecord =
                     Maybe.map (\room -> { room | users = updateUsers })
@@ -424,7 +434,7 @@ updateFromFrontend sessionId clientId msg model =
                 updateUsers =
                     users
                         |> List.map
-                            (\user -> { user | card = Nothing, voteState = NotVoted })
+                            (\user -> { user | voteState = NotVoted })
 
                 notifyCertainUsersAboutSomething : List User -> (List Story -> List User -> toFrontend) -> (SessionId -> toFrontend -> Cmd backendMsg) -> List (Cmd backendMsg)
                 notifyCertainUsersAboutSomething usrs msgToFe f =
