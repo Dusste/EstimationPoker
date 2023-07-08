@@ -2,6 +2,7 @@ module UtilTest exposing (..)
 
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
+import Mock
 import Test exposing (..)
 import Types exposing (Sequence(..))
 import Util
@@ -76,4 +77,20 @@ customSequenceTest =
             \_ ->
                 Util.fromStringToSequence "    1f$#@d-3 %@#@%#3fd21 f%$#d32 kmk2m1231 f$%#d1 df3%$#%d12 3f-d12 fd@!33 fd@!_213 2d)(_f1 d*&f321 d(f3  13thNumber      "
                     |> Expect.equal (InTransition "1 3 13 21 32 33 212 213 312 321")
+        ]
+
+
+toChartDataTest : Test
+toChartDataTest =
+    describe "Breaking down percentages of voters and present in charts"
+        [ test "should have 5 unique votes from 10 voters" <|
+            \_ ->
+                Util.toChartData 1 Mock.mockTeamSize Mock.mockUsersSortedList
+                    |> Expect.equal
+                        [ { numOfVoters = 2, percentage = 20, uniqueVoteValue = Just 1 }
+                        , { numOfVoters = 2, percentage = 20, uniqueVoteValue = Just 2 }
+                        , { numOfVoters = 2, percentage = 20, uniqueVoteValue = Just 3 }
+                        , { numOfVoters = 2, percentage = 20, uniqueVoteValue = Just 4 }
+                        , { numOfVoters = 2, percentage = 20, uniqueVoteValue = Just 5 }
+                        ]
         ]

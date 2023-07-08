@@ -81,8 +81,8 @@ getBaseUrl u =
 
 
 toChartData : Float -> Float -> List User -> List ChartsData
-toChartData increment teamSize lst =
-    case lst of
+toChartData increment teamSize sortedLst =
+    case sortedLst of
         [] ->
             []
 

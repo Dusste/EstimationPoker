@@ -4,11 +4,10 @@ import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav
 import Button
 import Css
-import Css.Global
 import Donut
-import Html.Styled as Html exposing (Attribute, Html, text)
+import Html.Styled as Html exposing (Html, text)
 import Html.Styled.Attributes as Attr
-import Html.Styled.Events exposing (onClick, onInput)
+import Html.Styled.Events exposing (onClick)
 import Input
 import Lamdera exposing (sendToBackend)
 import Ports
