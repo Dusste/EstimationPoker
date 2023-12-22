@@ -12,7 +12,7 @@ describe("Regular Admin journey", () => {
     );
     cy.get('[data-testid="intro-punchline"]').should(
       "have.text",
-      "Precise Planning, Efficient Execution, Blazing Fast !"
+      "Precise Planning <-> Efficient Execution <-> Blazing Fast !"
     );
     cy.get('[data-testid="intro-submit"]').click();
   });

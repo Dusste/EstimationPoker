@@ -657,7 +657,7 @@ view model =
                                     ]
                                     [ Html.h1 [ Attr.css [ Tw.mb_20, Tw.leading_relaxed, Bp.lg [ Tw.leading_none ] ], Attr.attribute "data-testid" "intro-h1" ] [ text "Hi ! Welcome to EST Poker !" ]
                                     , Html.p [ Attr.css [ Tw.text_color Tw.gray_400, Tw.text_2xl, Tw.italic, Tw.mb_10, Tw.mt_0, Tw.font_extralight ], Attr.attribute "data-testid" "intro-sub-head" ] [ text "[ Simple web app for estimation story points within team ]" ]
-                                    , Html.p [ Attr.css [ Tw.rounded, Tw.border_color Tw.teal_400, Tw.border_2, Tw.border_solid, Tw.p_5, Tw.mb_10 ], Attr.attribute "data-testid" "intro-punchline" ] [ text "Precise Planning, Efficient Execution, Blazing Fast !" ]
+                                    , Html.p [ Attr.css [ Tw.rounded, Tw.border_color Tw.teal_400, Tw.border_2, Tw.border_solid, Tw.p_5, Tw.mb_10 ], Attr.attribute "data-testid" "intro-punchline" ] [ text "Precise Planning <-> Efficient Execution <-> Blazing Fast !" ]
                                     , Button.new
                                         |> Button.withText "Get Started →"
                                         |> Button.withJumboStyle
