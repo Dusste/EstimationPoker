@@ -412,10 +412,14 @@ update msg model =
         SendCustomSequence ->
             case model.sequence of
                 Accept sequence ->
+                    let
+                        seqSeparatedByComma =
+                            sequence |> String.split " " |> String.join ","
+                    in
                     ( { model | status = PokerStep }
                     , Cmd.batch
                         [ sendToBackend <|
-                            SendCustomSequenceToBE sequence
+                            SendSequenceToBE (CustomSequence seqSeparatedByComma)
                                 (model.roomId |> Maybe.withDefault 1)
                         , Nav.pushUrl model.key <| "/room/" ++ (model.roomId |> Maybe.withDefault 1 |> String.fromInt)
                         ]
@@ -507,7 +511,7 @@ updateFromBackend msg model =
         SendRoomIdToFE roomId ->
             ( { model | roomId = Just roomId }, Cmd.none )
 
-        ResRoomRoute { status, roomName, sessionId, stories, users } ->
+        ResRoomRoute { status, roomName, sessionId, stories, users, chooseSequence } ->
             let
                 isAdmin =
                     users
@@ -522,6 +526,7 @@ updateFromBackend msg model =
                 , sessionId = Just sessionId
                 , stories = stories
                 , users = users
+                , chooseSequence = chooseSequence
                 , credentials =
                     if isAdmin then
                         Admin

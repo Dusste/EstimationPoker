@@ -471,8 +471,9 @@ itemHelp nums =
                 sortStringedIntsAndSpecialCases : List String -> List String
                 sortStringedIntsAndSpecialCases lst =
                     let
-                        isSpecialCase str =
-                            String.contains str "1/2" || str == "?"
+                        isSpecialCase : String -> Bool
+                        isSpecialCase eachStr =
+                            eachStr == "1/2" || eachStr == "?"
 
                         ( specialCases, intsButStrings ) =
                             List.partition isSpecialCase lst
@@ -565,7 +566,7 @@ sequence =
     - It consider input as "Accept" when it has 12 units, otherwise it's in state of "InTransition"
     - If it has unit containing only non-digits, it will skip it
     - It's sorts and duplicates are filtered, on beggining of list it should be "1/2" and "?", if present, followed by ints
-
+    - Accepted value should be sorted (ASC)
 -}
 
 

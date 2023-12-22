@@ -237,7 +237,6 @@ type ToBackend
     | SignalChartAnimation RoomParam
     | SignalRoomNameEdit ValidTextField RoomParam
     | SendSequenceToBE CommonSequence RoomParam
-    | SendCustomSequenceToBE SequenceString RoomParam
 
 
 type BackendMsg
@@ -246,7 +245,13 @@ type BackendMsg
 
 
 type alias RoomResponse =
-    { status : Status, roomName : ValidTextField, sessionId : SessionId, users : List User, stories : List Story }
+    { status : Status
+    , roomName : ValidTextField
+    , sessionId : SessionId
+    , users : List User
+    , stories : List Story
+    , chooseSequence : CommonSequence
+    }
 
 
 type ToFrontend

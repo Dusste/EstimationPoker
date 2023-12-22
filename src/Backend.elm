@@ -137,7 +137,7 @@ updateFromFrontend sessionId clientId msg model =
             case maybeRoom of
                 Just room ->
                     let
-                        { roomName, users, stories } =
+                        { roomName, users, stories, sequence } =
                             room
 
                         fromBEtoFEmodel =
@@ -152,6 +152,7 @@ updateFromFrontend sessionId clientId msg model =
                             , sessionId = sessionId
                             , users = users
                             , stories = stories
+                            , chooseSequence = sequence
                             }
                     in
                     ( model, sendToFrontend sessionId <| ResRoomRoute fromBEtoFEmodel )
@@ -471,28 +472,15 @@ updateFromFrontend sessionId clientId msg model =
             in
             ( { model | rooms = updateRooms }, notifyCertainUsersAboutSomething users UpdateRoomName sendToFrontend |> Cmd.batch )
 
-        SendSequenceToBE commonSequence roomId ->
+        SendSequenceToBE sequence roomId ->
             let
                 updateRecord =
-                    Maybe.map (\room -> { room | sequence = commonSequence })
+                    Maybe.map (\room -> { room | sequence = sequence })
 
                 updateRooms =
                     Dict.update roomId updateRecord model.rooms
             in
-            ( { model | rooms = updateRooms }, sendToFrontend sessionId <| UpdateSequence commonSequence )
-
-        SendCustomSequenceToBE customSequence roomId ->
-            let
-                seqSeparatedByComma =
-                    customSequence |> String.split " " |> String.join ","
-
-                updateRecord =
-                    Maybe.map (\room -> { room | sequence = CustomSequence seqSeparatedByComma })
-
-                updateRooms =
-                    Dict.update roomId updateRecord model.rooms
-            in
-            ( { model | rooms = updateRooms }, sendToFrontend sessionId <| UpdateSequence (CustomSequence seqSeparatedByComma) )
+            ( { model | rooms = updateRooms }, Cmd.none )
 
 
 subscriptions : BackendModel -> Sub BackendMsg
