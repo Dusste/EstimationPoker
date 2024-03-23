@@ -1234,6 +1234,9 @@ view model =
                                     , Html.a [ Attr.css [ Tw.text_xl, Tw.text_color Tw.teal_400 ], Attr.href "/" ] [ text "Go Home" ]
                                     ]
                                 ]
+                    , Html.p 
+                        [ Attr.css [ Tw.text_color Tw.gray_600, Tw.text_center, Tw.absolute, Tw.left_4, Tw.text_xs ] ] 
+                        [ text "Send me a feedback ! blunthomebrew@gmail.com" ]
                     ]
                 ]
         ]
